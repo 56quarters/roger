@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -14,12 +14,21 @@ const (
 	UpdateCheckFreq = 1 * time.Second
 	StatusOk        = "ok"
 	StatusErr       = "err"
+	ContentType     = "application/json"
 )
 
 type CheckResult struct {
 	CheckName string      `json:"check_name"`
 	Status    string      `json:"status"`
 	Details   interface{} `json:"details"`
+}
+
+func DefaultCheckResult() CheckResult {
+	return CheckResult{
+		CheckName: "none",
+		Status:    StatusOk,
+		Details:   map[string]string{},
+	}
 }
 
 type HealthCheck interface {
@@ -111,28 +120,30 @@ type CheckState struct {
 func NewCheckState(lock *sync.Mutex, queue <-chan CheckResult) CheckState {
 	return CheckState{
 		lock:  lock,
-		state: CheckResult{},
+		state: DefaultCheckResult(),
 		queue: queue,
 	}
 }
 
 func (s *CheckState) Update() {
+	res := <-s.queue
+
+	// only take a lock after a result from the channel
 	s.lock.Lock()
 	defer s.lock.Unlock()
-
-	s.state = <-s.queue
+	s.state = res
 }
 
-func (s *CheckState) Print() {
+func (s *CheckState) GetJson() ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	bytes, err := json.Marshal(s.state)
 	if err != nil {
-		log.Warn("Couldn't serialize result to JSON: %s", err)
-	} else {
-		fmt.Printf("%s\n", string(bytes))
+		return nil, err
 	}
+
+	return bytes, nil
 }
 
 func RunChecks(queue chan<- CheckResult, check HealthCheck) {
@@ -159,15 +170,37 @@ func main() {
 	defer runCheckTicker.Stop()
 	defer updateCheckTicker.Stop()
 
-	for {
-		select {
-		case <-updateCheckTicker.C:
-			go func() {
-				state.Update()
-				state.Print()
-			}()
-		case <-runCheckTicker.C:
-			go RunChecks(queue, composite)
+	go func() {
+		for {
+			select {
+			case <-updateCheckTicker.C:
+				go state.Update()
+			case <-runCheckTicker.C:
+				go RunChecks(queue, composite)
+			}
 		}
+	}()
+
+	http.HandleFunc("/-/healthy", func(w http.ResponseWriter, r *http.Request) {})
+	http.HandleFunc("/-/ready", func(w http.ResponseWriter, r *http.Request) {})
+	http.HandleFunc("/api/check", func(w http.ResponseWriter, r *http.Request) {
+		res, err := state.GetJson()
+		if err != nil {
+			log.Warn("Unexpected error serializing state: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.Header().Set("content-type", ContentType)
+			_, _ = w.Write(res)
+		}
+	})
+
+	s := &http.Server{
+		Addr:           ":8080",
+		Handler:        nil,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
 	}
+
+	log.Fatal(s.ListenAndServe())
 }
