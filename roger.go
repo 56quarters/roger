@@ -119,10 +119,14 @@ func NewCheckState(lock *sync.Mutex, queue <-chan CheckResult) CheckState {
 func (s *CheckState) Update() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
 	s.state = <-s.queue
 }
 
 func (s *CheckState) Print() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	bytes, err := json.Marshal(s.state)
 	if err != nil {
 		log.Warn("Couldn't serialize result to JSON: %s", err)
