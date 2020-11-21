@@ -4,16 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"sync"
 	"time"
 )
 
 const (
-	BufSize   = 100
-	CheckFreq = 5 * time.Second
-	ReadFreq  = 1 * time.Second
-	StatusOk  = "ok"
-	StatusErr = "err"
+	BufSize         = 100
+	RunCheckFreq    = 5 * time.Second
+	UpdateCheckFreq = 1 * time.Second
+	StatusOk        = "ok"
+	StatusErr       = "err"
 )
+
+type CheckResult struct {
+	CheckName string      `json:"check_name"`
+	Status    string      `json:"status"`
+	Details   interface{} `json:"details"`
+}
 
 type HealthCheck interface {
 	Refresh() (CheckResult, error)
@@ -95,10 +102,33 @@ func (c CompositeHealthCheck) Name() string {
 	return "composite"
 }
 
-type CheckResult struct {
-	CheckName string      `json:"check_name"`
-	Status    string      `json:"status"`
-	Details   interface{} `json:"details"`
+type CheckState struct {
+	lock  *sync.Mutex
+	state CheckResult
+	queue <-chan CheckResult
+}
+
+func NewCheckState(lock *sync.Mutex, queue <-chan CheckResult) CheckState {
+	return CheckState{
+		lock:  lock,
+		state: CheckResult{},
+		queue: queue,
+	}
+}
+
+func (s *CheckState) Update() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.state = <-s.queue
+}
+
+func (s *CheckState) Print() {
+	bytes, err := json.Marshal(s.state)
+	if err != nil {
+		log.Warn("Couldn't serialize result to JSON: %s", err)
+	} else {
+		fmt.Printf("%s\n", string(bytes))
+	}
 }
 
 func RunChecks(queue chan<- CheckResult, check HealthCheck) {
@@ -110,16 +140,6 @@ func RunChecks(queue chan<- CheckResult, check HealthCheck) {
 	}
 }
 
-func PrintCheckResults(queue <-chan CheckResult) {
-	res := <-queue
-	bytes, err := json.Marshal(res)
-	if err != nil {
-		log.Warn("Couldn't serialize result to JSON: %s", err)
-	} else {
-		fmt.Printf("%s\n", string(bytes))
-	}
-}
-
 func main() {
 	log.SetFormatter(&log.JSONFormatter{})
 
@@ -127,18 +147,22 @@ func main() {
 	disk := NewDiskHealthCheck()
 	composite := NewCompositeHealthCheck([]HealthCheck{cpu, disk})
 	queue := make(chan CheckResult, BufSize)
+	state := NewCheckState(&sync.Mutex{}, queue)
 
-	checkTicker := time.NewTicker(CheckFreq)
-	readTicker := time.NewTicker(ReadFreq)
+	runCheckTicker := time.NewTicker(RunCheckFreq)
+	updateCheckTicker := time.NewTicker(UpdateCheckFreq)
 
-	defer checkTicker.Stop()
-	defer readTicker.Stop()
+	defer runCheckTicker.Stop()
+	defer updateCheckTicker.Stop()
 
 	for {
 		select {
-		case <-readTicker.C:
-			go PrintCheckResults(queue)
-		case <-checkTicker.C:
+		case <-updateCheckTicker.C:
+			go func() {
+				state.Update()
+				state.Print()
+			}()
+		case <-runCheckTicker.C:
 			go RunChecks(queue, composite)
 		}
 	}
