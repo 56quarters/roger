@@ -9,12 +9,13 @@ import (
 )
 
 const (
-	BufSize         = 100
-	RunCheckFreq    = 5 * time.Second
-	UpdateCheckFreq = 1 * time.Second
-	StatusOk        = "ok"
-	StatusErr       = "err"
-	ContentType     = "application/json"
+	BufSize          = 100
+	RunCheckFreq     = 5 * time.Second
+	UpdateCheckFreq  = 1 * time.Second
+	StatusOk         = "ok"
+	StatusErr        = "err"
+	ContentType      = "application/json"
+	DefaultCheckName = "none"
 )
 
 type CheckResult struct {
@@ -25,7 +26,7 @@ type CheckResult struct {
 
 func DefaultCheckResult() CheckResult {
 	return CheckResult{
-		CheckName: "none",
+		CheckName: DefaultCheckName,
 		Status:    StatusOk,
 		Details:   map[string]string{},
 	}
@@ -42,7 +43,7 @@ func NewCpuHealthCheck() CpuHealthCheck {
 	return CpuHealthCheck{}
 }
 
-func (c CpuHealthCheck) Refresh() (CheckResult, error) {
+func (c *CpuHealthCheck) Refresh() (CheckResult, error) {
 	return CheckResult{
 		Status:    StatusOk,
 		CheckName: c.Name(),
@@ -50,7 +51,7 @@ func (c CpuHealthCheck) Refresh() (CheckResult, error) {
 	}, nil
 }
 
-func (c CpuHealthCheck) Name() string {
+func (c *CpuHealthCheck) Name() string {
 	return "cpu"
 }
 
@@ -60,7 +61,7 @@ func NewDiskHealthCheck() DiskHealthCheck {
 	return DiskHealthCheck{}
 }
 
-func (c DiskHealthCheck) Refresh() (CheckResult, error) {
+func (c *DiskHealthCheck) Refresh() (CheckResult, error) {
 	return CheckResult{
 		Status:    StatusErr,
 		CheckName: c.Name(),
@@ -68,7 +69,7 @@ func (c DiskHealthCheck) Refresh() (CheckResult, error) {
 	}, nil
 }
 
-func (c DiskHealthCheck) Name() string {
+func (c *DiskHealthCheck) Name() string {
 	return "disk"
 }
 
@@ -82,7 +83,7 @@ func NewCompositeHealthCheck(checks []HealthCheck) CompositeHealthCheck {
 	}
 }
 
-func (c CompositeHealthCheck) Refresh() (CheckResult, error) {
+func (c *CompositeHealthCheck) Refresh() (CheckResult, error) {
 	status := StatusOk
 	var details []CheckResult
 
@@ -107,7 +108,7 @@ func (c CompositeHealthCheck) Refresh() (CheckResult, error) {
 	}, nil
 }
 
-func (c CompositeHealthCheck) Name() string {
+func (c *CompositeHealthCheck) Name() string {
 	return "composite"
 }
 
@@ -123,6 +124,12 @@ func NewCheckState(lock *sync.Mutex, queue <-chan CheckResult) CheckState {
 		state: DefaultCheckResult(),
 		queue: queue,
 	}
+}
+
+func (s *CheckState) IsReady() bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.state.CheckName != DefaultCheckName
 }
 
 func (s *CheckState) Update() {
@@ -146,6 +153,37 @@ func (s *CheckState) GetJson() ([]byte, error) {
 	return bytes, nil
 }
 
+type RogerHttpHandler struct {
+	checkState *CheckState
+}
+
+func NewRogerHttpHandler(checkState *CheckState) RogerHttpHandler {
+	return RogerHttpHandler{checkState: checkState}
+}
+
+func (h *RogerHttpHandler) HandleHealthy(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *RogerHttpHandler) HandleReady(w http.ResponseWriter, r *http.Request) {
+	if !h.checkState.IsReady() {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (h *RogerHttpHandler) HandleApi(w http.ResponseWriter, r *http.Request) {
+	res, err := h.checkState.GetJson()
+	if err != nil {
+		log.Warn("Unexpected error serializing state: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.Header().Set("content-type", ContentType)
+		_, _ = w.Write(res)
+	}
+}
+
 func RunChecks(queue chan<- CheckResult, check HealthCheck) {
 	res, err := check.Refresh()
 	if err != nil {
@@ -160,10 +198,10 @@ func main() {
 
 	cpu := NewCpuHealthCheck()
 	disk := NewDiskHealthCheck()
-	composite := NewCompositeHealthCheck([]HealthCheck{cpu, disk})
+	composite := NewCompositeHealthCheck([]HealthCheck{&cpu, &disk})
 	queue := make(chan CheckResult, BufSize)
-	state := NewCheckState(&sync.Mutex{}, queue)
 
+	state := NewCheckState(&sync.Mutex{}, queue)
 	runCheckTicker := time.NewTicker(RunCheckFreq)
 	updateCheckTicker := time.NewTicker(UpdateCheckFreq)
 
@@ -176,23 +214,15 @@ func main() {
 			case <-updateCheckTicker.C:
 				go state.Update()
 			case <-runCheckTicker.C:
-				go RunChecks(queue, composite)
+				go RunChecks(queue, &composite)
 			}
 		}
 	}()
 
-	http.HandleFunc("/-/healthy", func(w http.ResponseWriter, r *http.Request) {})
-	http.HandleFunc("/-/ready", func(w http.ResponseWriter, r *http.Request) {})
-	http.HandleFunc("/api/check", func(w http.ResponseWriter, r *http.Request) {
-		res, err := state.GetJson()
-		if err != nil {
-			log.Warn("Unexpected error serializing state: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.Header().Set("content-type", ContentType)
-			_, _ = w.Write(res)
-		}
-	})
+	httpHandler := NewRogerHttpHandler(&state)
+	http.HandleFunc("/-/healthy", httpHandler.HandleHealthy)
+	http.HandleFunc("/-/ready", httpHandler.HandleReady)
+	http.HandleFunc("/api/check", httpHandler.HandleApi)
 
 	s := &http.Server{
 		Addr:           ":8080",
