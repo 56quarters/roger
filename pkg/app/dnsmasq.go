@@ -78,7 +78,10 @@ func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
 	}
 
 	if len(res.Answer) != len(res.Question) {
-		return nil, fmt.Errorf("unexpected number of answers (%d expected, got %d)", len(m.Question), len(res.Answer))
+		return nil, fmt.Errorf(
+			"unexpected number of answers from %s (%d expected, got %d)",
+			d.address, len(m.Question), len(res.Answer),
+		)
 	}
 
 	cacheSize, err := parseIntRecord(res.Answer[0])

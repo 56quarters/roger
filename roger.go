@@ -2,32 +2,41 @@ package main
 
 import (
 	"github.com/56quarters/roger/pkg/app"
-	"github.com/go-kit/kit/log"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"net/http"
 	"os"
 	"time"
 )
 
-const (
-	dnsReaderFreq = 5 * time.Second
-)
-
-func setupLogger() log.Logger {
-	var logger log.Logger
-	logger = log.NewLogfmtLogger(os.Stderr)
-	logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+func setupLogger() *log.Logger {
+	logger := log.New()
+	logger.SetReportCaller(true)
+	logger.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
 	return logger
 }
 
 func main() {
 	logger := setupLogger()
-	dnsServer := os.Args[1]
-	dnsReaderTick := time.NewTicker(dnsReaderFreq)
+
+	kp := kingpin.New(os.Args[0], "Roger: DNS and networking Prometheus exporter")
+	dnsServer := kp.Flag("dns.server", "DNS server to export metrics for, including port").Default("127.0.0.1:53").String()
+	dnsPeriod := kp.Flag("dns.period", "How often to poll the DNS server for metrics, as a duration").Default("10s").Duration()
+
+	_, err := kp.Parse(os.Args[1:])
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	dnsReaderTick := time.NewTicker(*dnsPeriod)
 	metricBundle := app.NewMetricBundle(prometheus.DefaultRegisterer)
-	dnsmasqReader := app.NewDnsmasqReader(new(dns.Client), dnsServer)
+	dnsmasqReader := app.NewDnsmasqReader(new(dns.Client), *dnsServer)
 	defer dnsReaderTick.Stop()
 
 	go func() {
@@ -37,7 +46,7 @@ func main() {
 				go func() {
 					err := dnsmasqReader.Update(&metricBundle)
 					if err != nil {
-						_ = logger.Log("error", err)
+						logger.Warn(err)
 					}
 				}()
 			}
@@ -45,5 +54,5 @@ func main() {
 	}()
 
 	http.Handle("/metrics", promhttp.Handler())
-	_ = logger.Log("error", http.ListenAndServe(":8080", nil))
+	logger.Error(http.ListenAndServe(":8080", nil))
 }
