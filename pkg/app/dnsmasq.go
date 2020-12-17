@@ -35,27 +35,29 @@ func NewDnsmasqReader(client *dns.Client, address string) DnsmasqReader {
 	}
 }
 
+// Make a DNS request to get all metrics and update the provided bundle
 func (d *DnsmasqReader) Update(bundle *MetricBundle) error {
 	res, err := d.ReadMetrics()
 	if err != nil {
 		return err
 	}
 
-	bundle.DnsCacheSize.Set(float64(res.CacheSize))
-	bundle.DnsCacheInsertions.Set(float64(res.CacheInsertions))
-	bundle.DnsCacheEvictions.Set(float64(res.CacheEvictions))
-	bundle.DnsCacheMisses.Set(float64(res.CacheMisses))
-	bundle.DnsCacheHits.Set(float64(res.CacheHits))
-	bundle.DnsAuthoritative.Set(float64(res.Authoritative))
+	bundle.DnsCacheSize.WithLabelValues(d.address).Set(float64(res.CacheSize))
+	bundle.DnsCacheInsertions.WithLabelValues(d.address).Set(float64(res.CacheInsertions))
+	bundle.DnsCacheEvictions.WithLabelValues(d.address).Set(float64(res.CacheEvictions))
+	bundle.DnsCacheMisses.WithLabelValues(d.address).Set(float64(res.CacheMisses))
+	bundle.DnsCacheHits.WithLabelValues(d.address).Set(float64(res.CacheHits))
+	bundle.DnsAuthoritative.WithLabelValues(d.address).Set(float64(res.Authoritative))
 
 	for _, s := range res.Servers {
-		bundle.DnsUpstreamQueries.WithLabelValues(s.Address).Set(float64(s.QueriesSent))
-		bundle.DnsUpstreamErrors.WithLabelValues(s.Address).Set(float64(s.QueryErrors))
+		bundle.DnsUpstreamQueries.WithLabelValues(d.address, s.Address).Set(float64(s.QueriesSent))
+		bundle.DnsUpstreamErrors.WithLabelValues(d.address, s.Address).Set(float64(s.QueryErrors))
 	}
 
 	return nil
 }
 
+// Make a DNS request to get all known dnsmasq metrics
 func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
 	m := new(dns.Msg)
 	m.MsgHdr = dns.MsgHdr{
