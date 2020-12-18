@@ -17,9 +17,9 @@ import (
 const interfaceLabel = "interface"
 
 type ProcReader struct {
-	path    string
-	lock    sync.Mutex
-	metrics []NetInterfaceResults
+	path         string
+	lock         sync.Mutex
+	descriptions map[string]*prometheus.Desc
 }
 
 type NetInterfaceResults struct {
@@ -28,45 +28,40 @@ type NetInterfaceResults struct {
 }
 
 func NewProcReader(path string) ProcReader {
-	return ProcReader{path: path}
-}
-
-func appendValues(metrics map[string]uint64, namespace string, subsystem string, headers []string, values []string) {
-	for i := 0; i < len(headers); i++ {
-		name := prometheus.BuildFQName(namespace, subsystem, headers[i])
-		val, err := strconv.ParseUint(values[i], 10, 64)
-
-		if err != nil {
-			Log.Warn("Failed to parse value for %s: %s", name, err)
-			continue
-		}
-
-		metrics[name] = val
+	return ProcReader{
+		path:         path,
+		lock:         sync.Mutex{},
+		descriptions: make(map[string]*prometheus.Desc),
 	}
 }
 
-func metricDesc(name string) *prometheus.Desc {
-	return prometheus.NewDesc(name, "", []string{interfaceLabel}, nil)
-}
-
-func (p *ProcReader) Describe(ch chan<- *prometheus.Desc) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	for _, ifaceMetrics := range p.metrics {
-		for k, _ := range ifaceMetrics.MetricValues {
-			ch <- metricDesc(k)
-		}
-	}
+func (p *ProcReader) Describe(_ chan<- *prometheus.Desc) {
+	// Unchecked collector. We don't return descriptors for the metrics that
+	// the .Collect() method will return since they're constructed dynamically
+	// based on the results of parsing the /proc/net/dev file.
 }
 
 func (p *ProcReader) Collect(ch chan<- prometheus.Metric) {
+	res, err := p.ReadMetrics()
+	if err != nil {
+		Log.Warnf("Failed to read metrics during collection: %s", err)
+		return
+	}
+
+	// Locking since we're modifying our cache of metric descriptions as we emit
+	// values for them (and collectors must be safe to be called concurrently)
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	for _, ifaceMetrics := range p.metrics {
-		for k, v := range ifaceMetrics.MetricValues {
-			ch <- prometheus.MustNewConstMetric(metricDesc(k), prometheus.CounterValue, float64(v), ifaceMetrics.InterfaceName)
+	for _, metrics := range res {
+		for k, v := range metrics.MetricValues {
+			desc, ok := p.descriptions[k]
+			if !ok {
+				desc = metricDesc(k)
+				p.descriptions[k] = desc
+			}
+
+			ch <- prometheus.MustNewConstMetric(desc, prometheus.CounterValue, float64(v), metrics.InterfaceName)
 		}
 	}
 }
@@ -79,7 +74,7 @@ func (p *ProcReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	}
 
 	defer func() { _ = f.Close() }()
-	
+
 	scanner := bufio.NewScanner(f)
 	scanner.Scan()
 	scanner.Scan() // skip header line
@@ -119,15 +114,20 @@ func (p *ProcReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	return res, nil
 }
 
-func (p *ProcReader) Update() error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+func appendValues(metrics map[string]uint64, namespace string, subsystem string, headers []string, values []string) {
+	for i := 0; i < len(headers); i++ {
+		name := prometheus.BuildFQName(namespace, subsystem, headers[i])
+		val, err := strconv.ParseUint(values[i], 10, 64)
 
-	res, err := p.ReadMetrics()
-	if err != nil {
-		return err
+		if err != nil {
+			Log.Warnf("Failed to parse value for %s: %s", name, err)
+			continue
+		}
+
+		metrics[name] = val
 	}
+}
 
-	p.metrics = res
-	return nil
+func metricDesc(name string) *prometheus.Desc {
+	return prometheus.NewDesc(name, "", []string{interfaceLabel}, nil)
 }
