@@ -19,62 +19,16 @@ const interfaceLabel = "interface"
 type ProcReader struct {
 	path    string
 	lock    sync.Mutex
-	metrics []ifaceMetrics
+	metrics []NetInterfaceResults
 }
 
-type ifaceMetrics struct {
-	iface  string
-	values map[string]uint64
+type NetInterfaceResults struct {
+	InterfaceName string
+	MetricValues  map[string]uint64
 }
 
 func NewProcReader(path string) ProcReader {
 	return ProcReader{path: path}
-}
-
-func (p *ProcReader) parseNetDev() ([]ifaceMetrics, error) {
-	netDev := filepath.Join(p.path, "net", "dev")
-	f, err := os.Open(netDev)
-
-	if err != nil {
-		return nil, err
-	}
-	scanner := bufio.NewScanner(f)
-	scanner.Scan()
-	scanner.Scan() // skip header line
-
-	headerLine := scanner.Text()
-	headerParts := strings.Split(headerLine, "|")
-
-	if len(headerParts) != 3 {
-		return nil, fmt.Errorf("unexpected header line format %s", headerLine)
-	}
-
-	rxHeaders := strings.Fields(headerParts[1])
-	txHeaders := strings.Fields(headerParts[2])
-	var res []ifaceMetrics
-
-	for {
-		if !scanner.Scan() {
-			break
-		}
-
-		line := scanner.Text()
-		parts := strings.Fields(line)
-		iface := strings.TrimRight(parts[0], ":")
-		rxVals := parts[1 : len(rxHeaders)+1]
-		txVals := parts[len(rxHeaders)+1:]
-		metrics := make(map[string]uint64)
-
-		appendValues(metrics, "roger", "net_rx", rxHeaders, rxVals)
-		appendValues(metrics, "roger", "net_tx", txHeaders, txVals)
-
-		res = append(res, ifaceMetrics{
-			iface:  iface,
-			values: metrics,
-		})
-	}
-
-	return res, nil
 }
 
 func appendValues(metrics map[string]uint64, namespace string, subsystem string, headers []string, values []string) {
@@ -100,7 +54,7 @@ func (p *ProcReader) Describe(ch chan<- *prometheus.Desc) {
 	defer p.lock.Unlock()
 
 	for _, ifaceMetrics := range p.metrics {
-		for k, _ := range ifaceMetrics.values {
+		for k, _ := range ifaceMetrics.MetricValues {
 			ch <- metricDesc(k)
 		}
 	}
@@ -111,17 +65,63 @@ func (p *ProcReader) Collect(ch chan<- prometheus.Metric) {
 	defer p.lock.Unlock()
 
 	for _, ifaceMetrics := range p.metrics {
-		for k, v := range ifaceMetrics.values {
-			ch <- prometheus.MustNewConstMetric(metricDesc(k), prometheus.CounterValue, float64(v), ifaceMetrics.iface)
+		for k, v := range ifaceMetrics.MetricValues {
+			ch <- prometheus.MustNewConstMetric(metricDesc(k), prometheus.CounterValue, float64(v), ifaceMetrics.InterfaceName)
 		}
 	}
+}
+
+func (p *ProcReader) ReadMetrics() ([]NetInterfaceResults, error) {
+	netDev := filepath.Join(p.path, "net", "dev")
+	f, err := os.Open(netDev)
+
+	if err != nil {
+		return nil, err
+	}
+	scanner := bufio.NewScanner(f)
+	scanner.Scan()
+	scanner.Scan() // skip header line
+
+	headerLine := scanner.Text()
+	headerParts := strings.Split(headerLine, "|")
+
+	if len(headerParts) != 3 {
+		return nil, fmt.Errorf("unexpected header line format %s", headerLine)
+	}
+
+	rxHeaders := strings.Fields(headerParts[1])
+	txHeaders := strings.Fields(headerParts[2])
+	var res []NetInterfaceResults
+
+	for {
+		if !scanner.Scan() {
+			break
+		}
+
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		iface := strings.TrimRight(parts[0], ":")
+		rxVals := parts[1 : len(rxHeaders)+1]
+		txVals := parts[len(rxHeaders)+1:]
+		metrics := make(map[string]uint64)
+
+		appendValues(metrics, "roger", "net_rx", rxHeaders, rxVals)
+		appendValues(metrics, "roger", "net_tx", txHeaders, txVals)
+
+		res = append(res, NetInterfaceResults{
+			InterfaceName: iface,
+			MetricValues:  metrics,
+		})
+	}
+
+	return res, nil
 }
 
 func (p *ProcReader) Update() error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	res, err := p.parseNetDev()
+	res, err := p.ReadMetrics()
 	if err != nil {
 		return err
 	}
