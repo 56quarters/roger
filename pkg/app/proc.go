@@ -74,10 +74,12 @@ func (p *ProcReader) Collect(ch chan<- prometheus.Metric) {
 func (p *ProcReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	netDev := filepath.Join(p.path, "net", "dev")
 	f, err := os.Open(netDev)
-
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() { _ = f.Close() }()
+	
 	scanner := bufio.NewScanner(f)
 	scanner.Scan()
 	scanner.Scan() // skip header line
