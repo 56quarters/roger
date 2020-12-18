@@ -9,19 +9,8 @@ import (
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
-
-func setupLogger() *log.Logger {
-	logger := log.New()
-	logger.SetReportCaller(true)
-	logger.SetFormatter(&log.TextFormatter{
-		DisableColors: true,
-		FullTimestamp: true,
-	})
-	return logger
-}
 
 func main() {
 	kp := kingpin.New(os.Args[0], "Roger: DNS and networking Prometheus exporter")
