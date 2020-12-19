@@ -116,7 +116,7 @@ func (p *ProcReader) ReadMetrics() ([]NetInterfaceResults, error) {
 
 func appendValues(metrics map[string]uint64, headers []string, values []string, namespace string, subsystem string) {
 	for i := 0; i < len(headers); i++ {
-		name := prometheus.BuildFQName(namespace, subsystem, headers[i])
+		name := prometheus.BuildFQName(strings.ToLower(namespace), strings.ToLower(subsystem), strings.ToLower(headers[i]))
 		val, err := strconv.ParseUint(values[i], 10, 64)
 
 		if err != nil {
