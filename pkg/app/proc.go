@@ -27,8 +27,8 @@ type NetInterfaceResults struct {
 	MetricValues  map[string]uint64
 }
 
-func NewProcReader(path string) ProcReader {
-	return ProcReader{
+func NewProcReader(path string) *ProcReader {
+	return &ProcReader{
 		path:         path,
 		lock:         sync.Mutex{},
 		descriptions: make(map[string]*prometheus.Desc),
@@ -102,8 +102,8 @@ func (p *ProcReader) ReadMetrics() ([]NetInterfaceResults, error) {
 		txVals := parts[len(rxHeaders)+1:]
 		metrics := make(map[string]uint64)
 
-		appendValues(metrics, "roger", "net_rx", rxHeaders, rxVals)
-		appendValues(metrics, "roger", "net_tx", txHeaders, txVals)
+		appendValues(metrics, rxHeaders, rxVals, "roger", "net_rx")
+		appendValues(metrics, txHeaders, txVals, "roger", "net_tx")
 
 		res = append(res, NetInterfaceResults{
 			InterfaceName: iface,
@@ -114,7 +114,7 @@ func (p *ProcReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	return res, nil
 }
 
-func appendValues(metrics map[string]uint64, namespace string, subsystem string, headers []string, values []string) {
+func appendValues(metrics map[string]uint64, headers []string, values []string, namespace string, subsystem string) {
 	for i := 0; i < len(headers); i++ {
 		name := prometheus.BuildFQName(namespace, subsystem, headers[i])
 		val, err := strconv.ParseUint(values[i], 10, 64)

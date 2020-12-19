@@ -95,8 +95,8 @@ type DnsmasqReader struct {
 	descriptions *descriptions
 }
 
-func NewDnsmasqReader(client *dns.Client, address string) DnsmasqReader {
-	return DnsmasqReader{
+func NewDnsmasqReader(client *dns.Client, address string) *DnsmasqReader {
+	return &DnsmasqReader{
 		client:       client,
 		address:      address,
 		descriptions: newDescriptions(),
