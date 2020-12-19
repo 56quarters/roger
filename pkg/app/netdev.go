@@ -16,7 +16,7 @@ import (
 
 const interfaceLabel = "interface"
 
-type ProcReader struct {
+type ProcNetDevReader struct {
 	path         string
 	lock         sync.Mutex
 	descriptions map[string]*prometheus.Desc
@@ -27,21 +27,21 @@ type NetInterfaceResults struct {
 	MetricValues  map[string]uint64
 }
 
-func NewProcReader(path string) *ProcReader {
-	return &ProcReader{
+func NewProcNetDevReader(path string) *ProcNetDevReader {
+	return &ProcNetDevReader{
 		path:         path,
 		lock:         sync.Mutex{},
 		descriptions: make(map[string]*prometheus.Desc),
 	}
 }
 
-func (p *ProcReader) Describe(_ chan<- *prometheus.Desc) {
+func (p *ProcNetDevReader) Describe(_ chan<- *prometheus.Desc) {
 	// Unchecked collector. We don't return descriptors for the metrics that
 	// the .Collect() method will return since they're constructed dynamically
 	// based on the results of parsing the /proc/net/dev file.
 }
 
-func (p *ProcReader) Collect(ch chan<- prometheus.Metric) {
+func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := p.ReadMetrics()
 	if err != nil {
 		Log.Warnf("Failed to read metrics during collection: %s", err)
@@ -66,7 +66,7 @@ func (p *ProcReader) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func (p *ProcReader) ReadMetrics() ([]NetInterfaceResults, error) {
+func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	netDev := filepath.Join(p.path, "net", "dev")
 	f, err := os.Open(netDev)
 	if err != nil {

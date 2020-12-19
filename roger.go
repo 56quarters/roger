@@ -26,8 +26,8 @@ func main() {
 	registry := prometheus.DefaultRegisterer
 	dnsmasqReader := app.NewDnsmasqReader(new(dns.Client), *dnsServer)
 	registry.MustRegister(dnsmasqReader)
-	procReader := app.NewProcReader(*procPath)
-	registry.MustRegister(procReader)
+	netDevReader := app.NewProcNetDevReader(*procPath)
+	registry.MustRegister(netDevReader)
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
