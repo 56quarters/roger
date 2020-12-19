@@ -13,7 +13,7 @@ To build from source you'll need Go 1.15 installed.
 
 ```
 git clone git@github.com:56quarters/roger.git && cd roger
-go build
+make build
 ```
 
 The `roger` binary will then be in the root of the checkout.
@@ -23,6 +23,10 @@ The `roger` binary will then be in the root of the checkout.
 TBD
 
 ## Usage
+
+TBD
+
+## Development
 
 TBD
 
