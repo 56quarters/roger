@@ -200,6 +200,7 @@ func (d *DnsmasqReader) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheInsertions, prometheus.CounterValue, float64(res.CacheInsertions), d.address)
 	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheEvictions, prometheus.CounterValue, float64(res.CacheEvictions), d.address)
 	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheMisses, prometheus.CounterValue, float64(res.CacheMisses), d.address)
+	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheHits, prometheus.CounterValue, float64(res.CacheHits), d.address)
 	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsAuthoritative, prometheus.CounterValue, float64(res.Authoritative), d.address)
 
 	for _, s := range res.Servers {
