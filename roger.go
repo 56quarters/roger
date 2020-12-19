@@ -11,6 +11,7 @@
 package main
 
 import (
+	"html"
 	"net/http"
 	"os"
 
@@ -22,7 +23,7 @@ import (
 )
 
 func main() {
-	kp := kingpin.New(os.Args[0], "Roger: DNS and networking Prometheus exporter")
+	kp := kingpin.New(os.Args[0], "Roger: DNS and network metrics exporter for Prometheus")
 	metricsPath := kp.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 	webAddr := kp.Flag("web.listen-address", "Address and port to expose Prometheus metrics on").Default(":9779").String()
 	dnsServer := kp.Flag("dns.server", "DNS server to export metrics for, including port").Default("127.0.0.1:53").String()
@@ -45,7 +46,7 @@ func main() {
 			<head><title>Roger Exporter</title></head>
 			<body>
 			<h1>Roger Exporter</h1>
-			<p><a href="` + *metricsPath + `">Metrics</a></p>
+			<p><a href="` + html.EscapeString(*metricsPath) + `">Metrics</a></p>
 			</body>
 			</html>`,
 		))
