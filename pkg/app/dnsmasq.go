@@ -20,61 +20,61 @@ import (
 )
 
 type descriptions struct {
-	DnsCacheSize       *prometheus.Desc
-	DnsCacheInsertions *prometheus.Desc
-	DnsCacheEvictions  *prometheus.Desc
-	DnsCacheMisses     *prometheus.Desc
-	DnsCacheHits       *prometheus.Desc
-	DnsAuthoritative   *prometheus.Desc
-	DnsUpstreamQueries *prometheus.Desc
-	DnsUpstreamErrors  *prometheus.Desc
+	dnsCacheSize       *prometheus.Desc
+	dnsCacheInsertions *prometheus.Desc
+	dnsCacheEvictions  *prometheus.Desc
+	dnsCacheMisses     *prometheus.Desc
+	dnsCacheHits       *prometheus.Desc
+	dnsAuthoritative   *prometheus.Desc
+	dnsUpstreamQueries *prometheus.Desc
+	dnsUpstreamErrors  *prometheus.Desc
 }
 
 func newDescriptions() *descriptions {
 	return &descriptions{
-		DnsCacheSize: prometheus.NewDesc(
+		dnsCacheSize: prometheus.NewDesc(
 			"roger_dns_cache_size",
 			"Size of the DNS cache",
 			[]string{"server"},
 			nil,
 		),
-		DnsCacheInsertions: prometheus.NewDesc(
+		dnsCacheInsertions: prometheus.NewDesc(
 			"roger_dns_cache_insertions",
 			"Number of inserts in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
-		DnsCacheEvictions: prometheus.NewDesc(
+		dnsCacheEvictions: prometheus.NewDesc(
 			"roger_dns_cache_evictions",
 			"Number of evictions in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
-		DnsCacheMisses: prometheus.NewDesc(
+		dnsCacheMisses: prometheus.NewDesc(
 			"roger_dns_cache_misses",
 			"Number of misses in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
-		DnsCacheHits: prometheus.NewDesc(
+		dnsCacheHits: prometheus.NewDesc(
 			"roger_dns_cache_hits",
 			"Number of hits in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
-		DnsAuthoritative: prometheus.NewDesc(
+		dnsAuthoritative: prometheus.NewDesc(
 			"roger_dns_authoritative",
 			"Number of authoritative DNS queries answered",
 			[]string{"server"},
 			nil,
 		),
-		DnsUpstreamQueries: prometheus.NewDesc(
+		dnsUpstreamQueries: prometheus.NewDesc(
 			"roger_dns_upstream_queries",
 			"Number of queries sent to upstream servers",
 			[]string{"server", "upstream"},
 			nil,
 		),
-		DnsUpstreamErrors: prometheus.NewDesc(
+		dnsUpstreamErrors: prometheus.NewDesc(
 			"roger_dns_upstream_errors",
 			"Number of errors from upstream servers",
 			[]string{"server", "upstream"},
@@ -189,14 +189,14 @@ func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
 }
 
 func (d *DnsmasqReader) Describe(ch chan<- *prometheus.Desc) {
-	ch <- d.descriptions.DnsCacheSize
-	ch <- d.descriptions.DnsCacheInsertions
-	ch <- d.descriptions.DnsCacheEvictions
-	ch <- d.descriptions.DnsCacheMisses
-	ch <- d.descriptions.DnsCacheHits
-	ch <- d.descriptions.DnsAuthoritative
-	ch <- d.descriptions.DnsUpstreamQueries
-	ch <- d.descriptions.DnsUpstreamErrors
+	ch <- d.descriptions.dnsCacheSize
+	ch <- d.descriptions.dnsCacheInsertions
+	ch <- d.descriptions.dnsCacheEvictions
+	ch <- d.descriptions.dnsCacheMisses
+	ch <- d.descriptions.dnsCacheHits
+	ch <- d.descriptions.dnsAuthoritative
+	ch <- d.descriptions.dnsUpstreamQueries
+	ch <- d.descriptions.dnsUpstreamErrors
 }
 
 func (d *DnsmasqReader) Collect(ch chan<- prometheus.Metric) {
@@ -206,16 +206,16 @@ func (d *DnsmasqReader) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheSize, prometheus.CounterValue, float64(res.CacheSize), d.address)
-	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheInsertions, prometheus.CounterValue, float64(res.CacheInsertions), d.address)
-	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheEvictions, prometheus.CounterValue, float64(res.CacheEvictions), d.address)
-	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheMisses, prometheus.CounterValue, float64(res.CacheMisses), d.address)
-	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsCacheHits, prometheus.CounterValue, float64(res.CacheHits), d.address)
-	ch <- prometheus.MustNewConstMetric(d.descriptions.DnsAuthoritative, prometheus.CounterValue, float64(res.Authoritative), d.address)
+	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheSize, prometheus.CounterValue, float64(res.CacheSize), d.address)
+	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheInsertions, prometheus.CounterValue, float64(res.CacheInsertions), d.address)
+	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheEvictions, prometheus.CounterValue, float64(res.CacheEvictions), d.address)
+	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheMisses, prometheus.CounterValue, float64(res.CacheMisses), d.address)
+	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheHits, prometheus.CounterValue, float64(res.CacheHits), d.address)
+	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsAuthoritative, prometheus.CounterValue, float64(res.Authoritative), d.address)
 
 	for _, s := range res.Servers {
-		ch <- prometheus.MustNewConstMetric(d.descriptions.DnsUpstreamQueries, prometheus.CounterValue, float64(s.QueriesSent), d.address, s.Address)
-		ch <- prometheus.MustNewConstMetric(d.descriptions.DnsUpstreamErrors, prometheus.CounterValue, float64(s.QueryErrors), d.address, s.Address)
+		ch <- prometheus.MustNewConstMetric(d.descriptions.dnsUpstreamQueries, prometheus.CounterValue, float64(s.QueriesSent), d.address, s.Address)
+		ch <- prometheus.MustNewConstMetric(d.descriptions.dnsUpstreamErrors, prometheus.CounterValue, float64(s.QueryErrors), d.address, s.Address)
 	}
 }
 
