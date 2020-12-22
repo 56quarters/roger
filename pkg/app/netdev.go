@@ -24,10 +24,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const interfaceLabel = "interface"
+const (
+	subsystemRx    = "net_rx"
+	subsystemTx    = "net_tx"
+	interfaceLabel = "interface"
+)
 
 type ProcNetDevReader struct {
-	path         string
+	netDev       string
 	lock         sync.Mutex
 	descriptions map[string]*prometheus.Desc
 }
@@ -39,7 +43,7 @@ type NetInterfaceResults struct {
 
 func NewProcNetDevReader(path string) *ProcNetDevReader {
 	return &ProcNetDevReader{
-		path:         path,
+		netDev:       filepath.Join(path, "net", "dev"),
 		lock:         sync.Mutex{},
 		descriptions: make(map[string]*prometheus.Desc),
 	}
@@ -67,7 +71,7 @@ func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 		for k, v := range metrics.MetricValues {
 			desc, ok := p.descriptions[k]
 			if !ok {
-				desc = metricDesc(k)
+				desc = metricDesc(k, p.netDev)
 				p.descriptions[k] = desc
 			}
 
@@ -77,8 +81,7 @@ func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
-	netDev := filepath.Join(p.path, "net", "dev")
-	f, err := os.Open(netDev)
+	f, err := os.Open(p.netDev)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +115,8 @@ func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
 		txVals := parts[len(rxHeaders)+1:]
 		metrics := make(map[string]uint64)
 
-		appendValues(metrics, rxHeaders, rxVals, "roger", "net_rx")
-		appendValues(metrics, txHeaders, txVals, "roger", "net_tx")
+		appendValues(metrics, rxHeaders, rxVals, metricNamespace, subsystemRx)
+		appendValues(metrics, txHeaders, txVals, metricNamespace, subsystemTx)
 
 		res = append(res, NetInterfaceResults{
 			InterfaceName: iface,
@@ -138,6 +141,6 @@ func appendValues(metrics map[string]uint64, headers []string, values []string, 
 	}
 }
 
-func metricDesc(name string) *prometheus.Desc {
-	return prometheus.NewDesc(name, "", []string{interfaceLabel}, nil)
+func metricDesc(name string, path string) *prometheus.Desc {
+	return prometheus.NewDesc(name, fmt.Sprintf("generated from %s", path), []string{interfaceLabel}, nil)
 }

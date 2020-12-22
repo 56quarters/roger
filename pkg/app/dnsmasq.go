@@ -19,6 +19,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const subsystemDns = "dns"
+
 type descriptions struct {
 	dnsCacheSize       *prometheus.Desc
 	dnsCacheInsertions *prometheus.Desc
@@ -33,49 +35,49 @@ type descriptions struct {
 func newDescriptions() *descriptions {
 	return &descriptions{
 		dnsCacheSize: prometheus.NewDesc(
-			"roger_dns_cache_size",
+			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_size"),
 			"Size of the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheInsertions: prometheus.NewDesc(
-			"roger_dns_cache_insertions",
+			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_insertions"),
 			"Number of inserts in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheEvictions: prometheus.NewDesc(
-			"roger_dns_cache_evictions",
+			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_evictions"),
 			"Number of evictions in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheMisses: prometheus.NewDesc(
-			"roger_dns_cache_misses",
+			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_misses"),
 			"Number of misses in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheHits: prometheus.NewDesc(
-			"roger_dns_cache_hits",
+			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_hits"),
 			"Number of hits in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsAuthoritative: prometheus.NewDesc(
-			"roger_dns_authoritative",
+			prometheus.BuildFQName(metricNamespace, subsystemDns, "authoritative"),
 			"Number of authoritative DNS queries answered",
 			[]string{"server"},
 			nil,
 		),
 		dnsUpstreamQueries: prometheus.NewDesc(
-			"roger_dns_upstream_queries",
+			prometheus.BuildFQName(metricNamespace, subsystemDns, "upstream_queries"),
 			"Number of queries sent to upstream servers",
 			[]string{"server", "upstream"},
 			nil,
 		),
 		dnsUpstreamErrors: prometheus.NewDesc(
-			"roger_dns_upstream_errors",
+			prometheus.BuildFQName(metricNamespace, subsystemDns, "upstream_errors"),
 			"Number of errors from upstream servers",
 			[]string{"server", "upstream"},
 			nil,
