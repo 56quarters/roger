@@ -1,5 +1,7 @@
 # Roger
 
+[![build status](https://circleci.com/gh/56quarters/roger.svg?style=shield)](https://circleci.com/gh/56quarters/roger)
+
 Prometheus exporter for dnsmasq (DNS and DHCP daemon) and networking metrics.
 
 ## Features
