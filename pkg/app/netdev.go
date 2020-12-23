@@ -24,14 +24,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	subsystemRx    = "net_rx"
-	subsystemTx    = "net_tx"
-	interfaceLabel = "interface"
-)
-
 type ProcNetDevReader struct {
-	netDev       string
+	path         string
 	lock         sync.Mutex
 	descriptions map[string]*prometheus.Desc
 }
@@ -41,9 +35,9 @@ type NetInterfaceResults struct {
 	MetricValues  map[string]uint64
 }
 
-func NewProcNetDevReader(path string) *ProcNetDevReader {
+func NewProcNetDevReader(base string) *ProcNetDevReader {
 	return &ProcNetDevReader{
-		netDev:       filepath.Join(path, "net", "dev"),
+		path:         filepath.Join(base, "net", "dev"),
 		lock:         sync.Mutex{},
 		descriptions: make(map[string]*prometheus.Desc),
 	}
@@ -71,7 +65,7 @@ func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 		for k, v := range metrics.MetricValues {
 			desc, ok := p.descriptions[k]
 			if !ok {
-				desc = metricDesc(k, p.netDev)
+				desc = prometheus.NewDesc(k, fmt.Sprintf("generated from %s", p.path), []string{"interface"}, nil)
 				p.descriptions[k] = desc
 			}
 
@@ -81,7 +75,7 @@ func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
-	f, err := os.Open(p.netDev)
+	f, err := os.Open(p.path)
 	if err != nil {
 		return nil, err
 	}
@@ -115,8 +109,8 @@ func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
 		txVals := parts[len(rxHeaders)+1:]
 		metrics := make(map[string]uint64)
 
-		appendValues(metrics, rxHeaders, rxVals, metricNamespace, subsystemRx)
-		appendValues(metrics, txHeaders, txVals, metricNamespace, subsystemTx)
+		appendNetDevValues(metrics, rxHeaders, rxVals, "net_rx")
+		appendNetDevValues(metrics, txHeaders, txVals, "net_tx")
 
 		res = append(res, NetInterfaceResults{
 			InterfaceName: iface,
@@ -127,9 +121,9 @@ func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	return res, nil
 }
 
-func appendValues(metrics map[string]uint64, headers []string, values []string, namespace string, subsystem string) {
+func appendNetDevValues(metrics map[string]uint64, headers []string, values []string, subsystem string) {
 	for i := 0; i < len(headers); i++ {
-		name := prometheus.BuildFQName(strings.ToLower(namespace), strings.ToLower(subsystem), strings.ToLower(headers[i]))
+		name := prometheus.BuildFQName("roger", subsystem, strings.ToLower(headers[i]))
 		val, err := strconv.ParseUint(values[i], 10, 64)
 
 		if err != nil {
@@ -139,8 +133,4 @@ func appendValues(metrics map[string]uint64, headers []string, values []string, 
 
 		metrics[name] = val
 	}
-}
-
-func metricDesc(name string, path string) *prometheus.Desc {
-	return prometheus.NewDesc(name, fmt.Sprintf("generated from %s", path), []string{interfaceLabel}, nil)
 }

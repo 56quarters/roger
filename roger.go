@@ -35,10 +35,18 @@ func main() {
 	}
 
 	registry := prometheus.DefaultRegisterer
+
 	dnsmasqReader := app.NewDnsmasqReader(new(dns.Client), *dnsServer)
 	registry.MustRegister(dnsmasqReader)
+
 	netDevReader := app.NewProcNetDevReader(*procPath)
 	registry.MustRegister(netDevReader)
+
+	// These metrics aren't guaranteed to exist
+	connTrack := app.NewProcNetStatReader(*procPath, "nf_conntrack")
+	if connTrack.Exists() {
+		registry.MustRegister(connTrack)
+	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

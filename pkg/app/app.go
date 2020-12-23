@@ -14,8 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const metricNamespace = "roger"
-
 var Log = setupLogger()
 
 func setupLogger() *log.Logger {
