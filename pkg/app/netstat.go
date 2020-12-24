@@ -12,6 +12,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// The "entries" field for the various /proc/net/stat metrics are shared
+// for all CPUs and so they get special treatment in the way they are summed
+// or not summed compared to other metrics.
+const entriesHeader = "entries"
+
 type ProcNetStatReader struct {
 	subsystem    string
 	path         string
@@ -21,7 +26,6 @@ type ProcNetStatReader struct {
 
 type NetStatResults struct {
 	Values []ValueDesc
-	Cpu    int
 }
 
 type ValueDesc struct {
@@ -55,16 +59,14 @@ func (p *ProcNetStatReader) Collect(ch chan<- prometheus.Metric) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	for i, metrics := range res {
-		for _, v := range metrics.Values {
-			desc, ok := p.descriptions[v.name]
-			if !ok {
-				desc = prometheus.NewDesc(v.name, fmt.Sprintf("generated from %s", p.path), []string{"cpu"}, nil)
-				p.descriptions[v.name] = desc
-			}
-
-			ch <- prometheus.MustNewConstMetric(desc, v.promType, float64(v.val), strconv.Itoa(i))
+	for _, v := range res.Values {
+		desc, ok := p.descriptions[v.name]
+		if !ok {
+			desc = prometheus.NewDesc(v.name, fmt.Sprintf("generated from %s", p.path), nil, nil)
+			p.descriptions[v.name] = desc
 		}
+
+		ch <- prometheus.MustNewConstMetric(desc, v.promType, float64(v.val))
 	}
 }
 
@@ -76,7 +78,7 @@ func (p *ProcNetStatReader) Exists() bool {
 	}
 }
 
-func (p *ProcNetStatReader) ReadMetrics() ([]NetStatResults, error) {
+func (p *ProcNetStatReader) ReadMetrics() (*NetStatResults, error) {
 	f, err := os.Open(p.path)
 	if err != nil {
 		return nil, err
@@ -87,28 +89,26 @@ func (p *ProcNetStatReader) ReadMetrics() ([]NetStatResults, error) {
 	scanner := bufio.NewScanner(f)
 	scanner.Scan()
 	headers := strings.Fields(scanner.Text())
+	parsed := make(map[string]ValueDesc)
 
-	var res []NetStatResults
-	for cpu := 0; ; cpu++ {
+	for {
 		if !scanner.Scan() {
 			break
 		}
 
 		line := scanner.Text()
 		parts := strings.Fields(line)
-
-		res = append(res, NetStatResults{
-			Values: p.parseConnTrackValues(headers, parts),
-			Cpu:    cpu,
-		})
+		p.parseConnTrackValues(parsed, headers, parts)
 	}
 
-	return res, nil
+	parsedValues := make([]ValueDesc, 0, len(parsed))
+	for _, v := range parsed {
+		parsedValues = append(parsedValues, v)
+	}
+	return &NetStatResults{Values: parsedValues}, nil
 }
 
-func (p *ProcNetStatReader) parseConnTrackValues(headers []string, values []string) []ValueDesc {
-	out := make([]ValueDesc, len(headers))
-
+func (p *ProcNetStatReader) parseConnTrackValues(parsed map[string]ValueDesc, headers []string, values []string) {
 	for i := 0; i < len(headers); i++ {
 		header := strings.ToLower(headers[i])
 		name := prometheus.BuildFQName("roger", p.subsystem, header)
@@ -119,20 +119,32 @@ func (p *ProcNetStatReader) parseConnTrackValues(headers []string, values []stri
 			continue
 		}
 
-		// The "entries" metrics for each of the /proc/net/stat files represents entries in
-		// some sort of table that can go up or down and hence must be a gauge. The rest of
-		// the values are counters
-		promType := prometheus.CounterValue
-		if header == "entries" {
-			promType = prometheus.GaugeValue
+		existing, ok := parsed[name]
+		if !ok {
+			// The "entries" metrics for each of the /proc/net/stat files represents entries in
+			// some sort of table that can go up or down and hence must be a gauge. The rest of
+			// the values are counters
+			var promType prometheus.ValueType
+			if header == entriesHeader {
+				promType = prometheus.GaugeValue
+			} else {
+				promType = prometheus.CounterValue
+			}
+
+			existing = ValueDesc{
+				name:     name,
+				val:      val,
+				promType: promType,
+			}
+
+			parsed[name] = existing
+		} else if header != entriesHeader {
+			// The "entries" metrics for each CPU actually represents the total number of entries
+			// in the table, it is shared across all CPUs. We only sum up the values here if the
+			// metric is actually unique to each CPU (core, hyperthread, etc)
+			existing.val += val
 		}
 
-		out[i] = ValueDesc{
-			name:     name,
-			val:      val,
-			promType: promType,
-		}
+		parsed[name] = existing
 	}
-
-	return out
 }

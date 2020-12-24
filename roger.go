@@ -48,6 +48,12 @@ func main() {
 		registry.MustRegister(connTrack)
 	}
 
+	// These metrics aren't guaranteed to exist
+	arpCache := app.NewProcNetStatReader(*procPath, "arp_cache")
+	if arpCache.Exists() {
+		registry.MustRegister(arpCache)
+	}
+
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`<html>
