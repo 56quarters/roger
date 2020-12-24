@@ -19,8 +19,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const subsystemDns = "dns"
-
 type descriptions struct {
 	dnsCacheSize       *prometheus.Desc
 	dnsCacheInsertions *prometheus.Desc
@@ -35,49 +33,49 @@ type descriptions struct {
 func newDescriptions() *descriptions {
 	return &descriptions{
 		dnsCacheSize: prometheus.NewDesc(
-			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_size"),
+			"roger_dns_cache_size",
 			"Size of the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheInsertions: prometheus.NewDesc(
-			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_insertions"),
+			"roger_dns_cache_insertions",
 			"Number of inserts in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheEvictions: prometheus.NewDesc(
-			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_evictions"),
+			"roger_dns_cache_evictions",
 			"Number of evictions in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheMisses: prometheus.NewDesc(
-			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_misses"),
+			"roger_dns_cache_misses",
 			"Number of misses in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheHits: prometheus.NewDesc(
-			prometheus.BuildFQName(metricNamespace, subsystemDns, "cache_hits"),
+			"roger_dns_cache_hits",
 			"Number of hits in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsAuthoritative: prometheus.NewDesc(
-			prometheus.BuildFQName(metricNamespace, subsystemDns, "authoritative"),
+			"roger_dns_authoritative",
 			"Number of authoritative DNS queries answered",
 			[]string{"server"},
 			nil,
 		),
 		dnsUpstreamQueries: prometheus.NewDesc(
-			prometheus.BuildFQName(metricNamespace, subsystemDns, "upstream_queries"),
+			"roger_dns_upstream_queries",
 			"Number of queries sent to upstream servers",
 			[]string{"server", "upstream"},
 			nil,
 		),
 		dnsUpstreamErrors: prometheus.NewDesc(
-			prometheus.BuildFQName(metricNamespace, subsystemDns, "upstream_errors"),
+			"roger_dns_upstream_errors",
 			"Number of errors from upstream servers",
 			[]string{"server", "upstream"},
 			nil,
