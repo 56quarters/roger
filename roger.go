@@ -11,7 +11,7 @@
 package main
 
 import (
-	"html"
+	"html/template"
 	"net/http"
 	"os"
 
@@ -21,6 +21,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
+
+const indexTpt = `
+<html>
+<head><title>Roger Exporter</title></head>
+<body>
+<h1>Roger Exporter</h1>
+<p><a href="{{ . }}">Metrics</a></p>
+</body>
+</html>
+`
 
 func main() {
 	kp := kingpin.New(os.Args[0], "Roger: DNS and network metrics exporter for Prometheus")
@@ -54,16 +64,16 @@ func main() {
 		registry.MustRegister(arpCache)
 	}
 
+	index, err := template.New("index").Parse(indexTpt)
+	if err != nil {
+		app.Log.Fatal(err)
+	}
+
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`<html>
-			<head><title>Roger Exporter</title></head>
-			<body>
-			<h1>Roger Exporter</h1>
-			<p><a href="` + html.EscapeString(*metricsPath) + `">Metrics</a></p>
-			</body>
-			</html>`,
-		))
+		if err := index.Execute(w, *metricsPath); err != nil {
+			app.Log.Errorf("Failed to render index: %s", err)
+		}
 	})
 	app.Log.Error(http.ListenAndServe(*webAddr, nil))
 }
