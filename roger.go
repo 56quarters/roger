@@ -23,6 +23,7 @@ import (
 )
 
 const indexTpt = `
+<!doctype html>
 <html>
 <head><title>Roger Exporter</title></head>
 <body>
