@@ -19,7 +19,15 @@ import (
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
+)
+
+// Set by the build process: -ldflags="-X 'main.Version=xyz'"
+var (
+	Version  string
+	Branch   string
+	Revision string
 )
 
 const indexTpt = `
@@ -32,6 +40,14 @@ const indexTpt = `
 </body>
 </html>
 `
+
+func init() {
+	// Set globals in the Prometheus version module based on our values
+	// set by the build process to expose build information as a metric
+	version.Version = Version
+	version.Branch = Branch
+	version.Revision = Revision
+}
 
 func main() {
 	kp := kingpin.New(os.Args[0], "Roger: DNS and network metrics exporter for Prometheus")
@@ -46,6 +62,9 @@ func main() {
 	}
 
 	registry := prometheus.DefaultRegisterer
+
+	versionInfo := version.NewCollector("roger")
+	registry.MustRegister(versionInfo)
 
 	dnsmasqReader := app.NewDnsmasqReader(new(dns.Client), *dnsServer)
 	registry.MustRegister(dnsmasqReader)
