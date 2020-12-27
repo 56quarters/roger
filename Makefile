@@ -5,18 +5,16 @@ GIT_VERSION := dev
 
 default: build
 
-.PHONY: build
+.PHONY: all build clean lint test
+
 build:
 	env CGO_ENABLED=$(USE_CGO) go build -ldflags="-X 'main.Branch=$(GIT_BRANCH)' -X 'main.Revision=$(GIT_REVISION)' -X 'main.Version=$(GIT_VERSION)'"
 
-.PHONY: clean
 clean:
 	rm -f roger
 
-.PHONY: lint
 lint:
 	golangci-lint run
 
-.PHONY: test
 test:
 	go test
