@@ -22,15 +22,95 @@ The `roger` binary will then be in the root of the checkout.
 
 ## Install
 
-TBD
+At the moment, Roger is GNU/Linux specific. As such, these instructions assume a
+GNU/Linux system.
+
+To install Roger after building as described above:
+
+* Copy the binary to `/usr/local/bin`
+
+```
+sudo cp roger /usr/local/bin/
+```
+
+* Copy and enable the Systemd unit
+
+```
+sudo cp ext/roger.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable roger.service
+```
+
+* Start the daemon
+
+```
+sudo systemctl start roger.service
+```
 
 ## Usage
 
-TBD
+Roger is meant to run on a machine acting as a DNS and DHCP server for your
+network (something running `dnsmasq`). It defaults to collecting metrics from
+a locally running `dnsmasq` server.
+
+Prometheus metrics are exposed on port `9779` at `/metrics` by default. Once it
+is running at the host as a Prometheus target under the `scrape_configs` section
+as described by the example below.
+
+```yaml
+# Sample config for Prometheus.
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+      monitor: 'my_prom'
+
+scrape_configs:
+  - job_name: roger
+    static_configs:
+      - targets: ['example:9779']
+```
+
+For more information about customizing how Roger is run, see `./roger --help`.
 
 ## Development
 
-TBD
+To build a binary:
+
+```
+make build
+```
+
+To build a tagged release binary:
+
+```
+make build-dist
+```
+
+To build a Docker image
+
+```
+make image
+```
+
+To build a tagged release Docker image
+
+```
+make image-dist
+```
+
+To run tests
+
+```
+make test
+```
+
+To run lints
+
+```
+make lint
+```
 
 ## License
 
