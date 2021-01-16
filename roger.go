@@ -70,15 +70,15 @@ func main() {
 	registry.MustRegister(dnsmasqReader)
 
 	netDevReader := app.NewProcNetDevReader(*procPath)
-	registry.MustRegister(netDevReader)
+	if netDevReader.Exists() {
+		registry.MustRegister(netDevReader)
+	}
 
-	// These metrics aren't guaranteed to exist
 	connTrack := app.NewProcNetStatReader(*procPath, "nf_conntrack")
 	if connTrack.Exists() {
 		registry.MustRegister(connTrack)
 	}
 
-	// These metrics aren't guaranteed to exist
 	arpCache := app.NewProcNetStatReader(*procPath, "arp_cache")
 	if arpCache.Exists() {
 		registry.MustRegister(arpCache)

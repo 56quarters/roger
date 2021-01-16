@@ -74,6 +74,14 @@ func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
+func (p *ProcNetDevReader) Exists() bool {
+	if _, err := os.Stat(p.path); os.IsNotExist(err) {
+		return false
+	} else {
+		return true
+	}
+}
+
 func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	f, err := os.Open(p.path)
 	if err != nil {
