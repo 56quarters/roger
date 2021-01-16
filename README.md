@@ -53,9 +53,10 @@ Roger is meant to run on a machine acting as a DNS and DHCP server for your
 network (something running `dnsmasq`). It defaults to collecting metrics from
 a locally running `dnsmasq` server.
 
-Prometheus metrics are exposed on port `9779` at `/metrics` by default. Once it
-is running at the host as a Prometheus target under the `scrape_configs` section
-as described by the example below.
+Prometheus metrics are exposed on port `9779` at `/metrics` by default. Once Roger
+is running, configure scrapes of it by your Prometheus server. Add the host running
+Roger as a target under the Prometheus `scrape_configs` section as described by
+the example below.
 
 ```yaml
 # Sample config for Prometheus.
