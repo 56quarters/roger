@@ -8,7 +8,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-package app
+package roger
 
 // read network stats from /proc
 
@@ -21,6 +21,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -28,6 +30,7 @@ type ProcNetDevReader struct {
 	path         string
 	lock         sync.Mutex
 	descriptions map[string]*prometheus.Desc
+	logger       log.Logger
 }
 
 type NetInterfaceResults struct {
@@ -35,11 +38,12 @@ type NetInterfaceResults struct {
 	MetricValues  map[string]uint64
 }
 
-func NewProcNetDevReader(base string) *ProcNetDevReader {
+func NewProcNetDevReader(base string, logger log.Logger) *ProcNetDevReader {
 	return &ProcNetDevReader{
 		path:         filepath.Join(base, "net", "dev"),
 		lock:         sync.Mutex{},
 		descriptions: make(map[string]*prometheus.Desc),
+		logger:       logger,
 	}
 }
 
@@ -52,7 +56,7 @@ func (p *ProcNetDevReader) Describe(_ chan<- *prometheus.Desc) {
 func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := p.ReadMetrics()
 	if err != nil {
-		Log.Warnf("Failed to read metrics during collection: %s", err)
+		level.Warn(p.logger).Log("msg", "Failed to read metrics during collection", "err", err)
 		return
 	}
 
@@ -117,8 +121,8 @@ func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
 		txVals := parts[len(rxHeaders)+1:]
 		metrics := make(map[string]uint64)
 
-		appendNetDevValues(metrics, rxHeaders, rxVals, "net_rx")
-		appendNetDevValues(metrics, txHeaders, txVals, "net_tx")
+		p.appendNetDevValues(metrics, rxHeaders, rxVals, "net_rx")
+		p.appendNetDevValues(metrics, txHeaders, txVals, "net_tx")
 
 		res = append(res, NetInterfaceResults{
 			InterfaceName: iface,
@@ -129,13 +133,13 @@ func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	return res, nil
 }
 
-func appendNetDevValues(metrics map[string]uint64, headers []string, values []string, subsystem string) {
+func (p *ProcNetDevReader) appendNetDevValues(metrics map[string]uint64, headers []string, values []string, subsystem string) {
 	for i := 0; i < len(headers); i++ {
 		name := prometheus.BuildFQName("roger", subsystem, strings.ToLower(headers[i]))
 		val, err := strconv.ParseUint(values[i], 10, 64)
 
 		if err != nil {
-			Log.Warnf("Failed to parse value for %s: %s", name, err)
+			level.Warn(p.logger).Log("msg", "Failed to parse value", "name", name, "err", err)
 			continue
 		}
 

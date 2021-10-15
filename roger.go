@@ -15,12 +15,14 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/56quarters/roger/pkg/app"
+	"github.com/go-kit/log/level"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/56quarters/roger/pkg/roger"
 )
 
 // Set by the build process: -ldflags="-X 'main.Version=xyz'"
@@ -50,6 +52,8 @@ func init() {
 }
 
 func main() {
+	logger := roger.SetupLogger(level.AllowInfo())
+
 	kp := kingpin.New(os.Args[0], "Roger: DNS and network metrics exporter for Prometheus")
 	metricsPath := kp.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 	webAddr := kp.Flag("web.listen-address", "Address and port to expose Prometheus metrics on").Default(":9779").String()
@@ -58,7 +62,8 @@ func main() {
 
 	_, err := kp.Parse(os.Args[1:])
 	if err != nil {
-		app.Log.Fatal(err)
+		level.Error(logger).Log("Failed to parse CLI options", "err", err)
+		os.Exit(1)
 	}
 
 	registry := prometheus.DefaultRegisterer
@@ -66,34 +71,39 @@ func main() {
 	versionInfo := version.NewCollector("roger")
 	registry.MustRegister(versionInfo)
 
-	dnsmasqReader := app.NewDnsmasqReader(new(dns.Client), *dnsServer)
+	dnsmasqReader := roger.NewDnsmasqReader(new(dns.Client), *dnsServer, logger)
 	registry.MustRegister(dnsmasqReader)
 
-	netDevReader := app.NewProcNetDevReader(*procPath)
+	netDevReader := roger.NewProcNetDevReader(*procPath, logger)
 	if netDevReader.Exists() {
 		registry.MustRegister(netDevReader)
 	}
 
-	connTrack := app.NewProcNetStatReader(*procPath, "nf_conntrack")
+	connTrack := roger.NewProcNetStatReader(*procPath, "nf_conntrack", logger)
 	if connTrack.Exists() {
 		registry.MustRegister(connTrack)
 	}
 
-	arpCache := app.NewProcNetStatReader(*procPath, "arp_cache")
+	arpCache := roger.NewProcNetStatReader(*procPath, "arp_cache", logger)
 	if arpCache.Exists() {
 		registry.MustRegister(arpCache)
 	}
 
 	index, err := template.New("index").Parse(indexTpt)
 	if err != nil {
-		app.Log.Fatal(err)
+		level.Error(logger).Log("msg", "Failed to parse index template", "err", err)
+		os.Exit(1)
 	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if err := index.Execute(w, *metricsPath); err != nil {
-			app.Log.Errorf("Failed to render index: %s", err)
+			level.Error(logger).Log("msg", "Failed to render index", "err", err)
 		}
 	})
-	app.Log.Error(http.ListenAndServe(*webAddr, nil))
+
+	if err := http.ListenAndServe(*webAddr, nil); err != nil {
+		level.Error(logger).Log("err", err)
+		os.Exit(1)
+	}
 }

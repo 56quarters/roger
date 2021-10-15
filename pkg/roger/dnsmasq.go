@@ -8,13 +8,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-package app
+package roger
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -103,17 +105,19 @@ type DnsmasqReader struct {
 	client       *dns.Client
 	address      string
 	descriptions *descriptions
+	logger       log.Logger
 }
 
-func NewDnsmasqReader(client *dns.Client, address string) *DnsmasqReader {
+func NewDnsmasqReader(client *dns.Client, address string, logger log.Logger) *DnsmasqReader {
 	return &DnsmasqReader{
 		client:       client,
 		address:      address,
 		descriptions: newDescriptions(),
+		logger:       logger,
 	}
 }
 
-// Make a DNS request to get all known dnsmasq metrics
+// ReadMetrics makes a DNS request to get all known dnsmasq metrics
 func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
 	m := new(dns.Msg)
 	m.MsgHdr = dns.MsgHdr{
@@ -202,7 +206,7 @@ func (d *DnsmasqReader) Describe(ch chan<- *prometheus.Desc) {
 func (d *DnsmasqReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := d.ReadMetrics()
 	if err != nil {
-		Log.Warnf("Failed to read metrics during collection: %s", err)
+		level.Warn(d.logger).Log("msg", "Failed to read metrics during collection", "err", err)
 		return
 	}
 

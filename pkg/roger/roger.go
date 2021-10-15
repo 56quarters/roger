@@ -8,20 +8,18 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-package app
+package roger
 
 import (
-	log "github.com/sirupsen/logrus"
+	"os"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
-var Log = setupLogger()
-
-func setupLogger() *log.Logger {
-	logger := log.New()
-	logger.SetReportCaller(true)
-	logger.SetFormatter(&log.TextFormatter{
-		DisableColors: true,
-		FullTimestamp: true,
-	})
+func SetupLogger(l level.Option) log.Logger {
+	logger := log.NewLogfmtLogger(os.Stderr)
+	logger = level.NewFilter(logger, l)
+	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 	return logger
 }
