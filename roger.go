@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
@@ -51,8 +52,15 @@ func init() {
 	version.Revision = Revision
 }
 
+func setupLogger(l level.Option) log.Logger {
+	logger := log.NewSyncLogger(log.NewLogfmtLogger(os.Stderr))
+	logger = level.NewFilter(logger, l)
+	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+	return logger
+}
+
 func main() {
-	logger := roger.SetupLogger(level.AllowInfo())
+	logger := setupLogger(level.AllowInfo())
 
 	kp := kingpin.New(os.Args[0], "Roger: DNS and network metrics exporter for Prometheus")
 	metricsPath := kp.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
