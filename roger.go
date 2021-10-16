@@ -1,6 +1,6 @@
 // Roger - DNS and network metrics exporter for Prometheus
 //
-// Copyright 2020 Nick Pillitteri
+// Copyright 2020-2021 Nick Pillitteri
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -70,7 +70,7 @@ func main() {
 
 	_, err := kp.Parse(os.Args[1:])
 	if err != nil {
-		level.Error(logger).Log("Failed to parse CLI options", "err", err)
+		level.Error(logger).Log("msg", "failed to parse CLI options", "err", err)
 		os.Exit(1)
 	}
 
@@ -99,14 +99,14 @@ func main() {
 
 	index, err := template.New("index").Parse(indexTpt)
 	if err != nil {
-		level.Error(logger).Log("msg", "Failed to parse index template", "err", err)
+		level.Error(logger).Log("msg", "failed to parse index template", "err", err)
 		os.Exit(1)
 	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if err := index.Execute(w, *metricsPath); err != nil {
-			level.Error(logger).Log("msg", "Failed to render index", "err", err)
+			level.Error(logger).Log("msg", "failed to render index", "err", err)
 		}
 	})
 

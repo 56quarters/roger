@@ -1,6 +1,6 @@
 // Roger - DNS and network metrics exporter for Prometheus
 //
-// Copyright 2020 Nick Pillitteri
+// Copyright 2020-2021 Nick Pillitteri
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -206,7 +206,7 @@ func (d *DnsmasqReader) Describe(ch chan<- *prometheus.Desc) {
 func (d *DnsmasqReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := d.ReadMetrics()
 	if err != nil {
-		level.Warn(d.logger).Log("msg", "Failed to read metrics during collection", "err", err)
+		level.Warn(d.logger).Log("msg", "failed to read metrics during collection", "err", err)
 		return
 	}
 

@@ -1,3 +1,13 @@
+// Roger - DNS and network metrics exporter for Prometheus
+//
+// Copyright 2020-2021 Nick Pillitteri
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 package roger
 
 import (
@@ -56,7 +66,7 @@ func (p *ProcNetStatReader) Describe(_ chan<- *prometheus.Desc) {
 func (p *ProcNetStatReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := p.ReadMetrics()
 	if err != nil {
-		level.Warn(p.logger).Log("msg", "Failed to read metrics during collection", "err", err)
+		level.Warn(p.logger).Log("msg", "failed to read metrics during collection", "err", err)
 		return
 	}
 
@@ -119,7 +129,7 @@ func (p *ProcNetStatReader) parseConnTrackValues(parsed map[string]ValueDesc, he
 		val, err := strconv.ParseUint(values[i], 16, 64)
 
 		if err != nil {
-			level.Warn(p.logger).Log("msg", "Failed to parse value", "name", name, "err", err)
+			level.Warn(p.logger).Log("msg", "failed to parse value", "name", name, "err", err)
 			continue
 		}
 
@@ -145,7 +155,7 @@ func (p *ProcNetStatReader) parseConnTrackValues(parsed map[string]ValueDesc, he
 		} else if header != entriesHeader {
 			// The "entries" metrics for each CPU actually represents the total number of entries
 			// in the table, it is shared across all CPUs. We only sum up the values here if the
-			// metric is actually unique to each CPU (core, hyperthread, etc)
+			// metric is actually unique to each CPU (core, hyper-thread, etc)
 			existing.val += val
 		}
 
