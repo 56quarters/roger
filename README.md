@@ -11,7 +11,7 @@ Prometheus exporter for dnsmasq (DNS and DHCP daemon) and networking metrics.
 
 ## Building
 
-To build from source you'll need Go 1.15 installed.
+To build from source you'll need Go 1.16 installed.
 
 ```
 git clone git@github.com:56quarters/roger.git && cd roger
