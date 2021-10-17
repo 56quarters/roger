@@ -14,12 +14,18 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 )
+
+// dnsClient is an interface for to allow testing of DnsmasqReader
+type dnsClient interface {
+	Exchange(m *dns.Msg, address string) (r *dns.Msg, rtt time.Duration, err error)
+}
 
 type descriptions struct {
 	dnsCacheSize       *prometheus.Desc
@@ -102,13 +108,13 @@ type ServerStats struct {
 }
 
 type DnsmasqReader struct {
-	client       *dns.Client
+	client       dnsClient
 	address      string
 	descriptions *descriptions
 	logger       log.Logger
 }
 
-func NewDnsmasqReader(client *dns.Client, address string, logger log.Logger) *DnsmasqReader {
+func NewDnsmasqReader(client dnsClient, address string, logger log.Logger) *DnsmasqReader {
 	return &DnsmasqReader{
 		client:       client,
 		address:      address,
@@ -134,6 +140,7 @@ func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
 		question("servers.bind."),
 	}
 
+	// TODO(56quarters) emit RTT as a metric
 	res, _, err := d.client.Exchange(m, d.address)
 	if err != nil {
 		return nil, err
