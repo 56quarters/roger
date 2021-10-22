@@ -66,7 +66,7 @@ func (p *ProcNetStatReader) Describe(_ chan<- *prometheus.Desc) {
 func (p *ProcNetStatReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := p.ReadMetrics()
 	if err != nil {
-		level.Warn(p.logger).Log("msg", "failed to read metrics during collection", "err", err)
+		level.Error(p.logger).Log("msg", "failed to read net/stat metrics during collection", "path", p.path, "err", err)
 		return
 	}
 
@@ -87,9 +87,9 @@ func (p *ProcNetStatReader) Collect(ch chan<- prometheus.Metric) {
 func (p *ProcNetStatReader) Exists() bool {
 	if _, err := os.Stat(p.path); os.IsNotExist(err) {
 		return false
-	} else {
-		return true
 	}
+
+	return true
 }
 
 func (p *ProcNetStatReader) ReadMetrics() (*NetStatResults, error) {
@@ -129,7 +129,7 @@ func (p *ProcNetStatReader) parseConnTrackValues(parsed map[string]ValueDesc, he
 		val, err := strconv.ParseUint(values[i], 16, 64)
 
 		if err != nil {
-			level.Warn(p.logger).Log("msg", "failed to parse value", "name", name, "err", err)
+			level.Warn(p.logger).Log("msg", "failed to parse value", "name", name, "value", values[i], "err", err)
 			continue
 		}
 

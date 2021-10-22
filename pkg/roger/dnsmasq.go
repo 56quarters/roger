@@ -11,6 +11,7 @@
 package roger
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -20,6 +21,13 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	ErrUpstream     = errors.New("error calling upstream")
+	ErrNumAnswers   = errors.New("unexpected number of answers")
+	ErrNumQuestions = errors.New("unexpected number of questions")
+	ErrParseAnswer  = errors.New("error parsing answer")
 )
 
 // dnsClient is an interface for to allow testing of DnsmasqReader
@@ -125,11 +133,8 @@ func NewDnsmasqReader(client dnsClient, address string, logger log.Logger) *Dnsm
 
 // ReadMetrics makes a DNS request to get all known dnsmasq metrics
 func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
-	m := new(dns.Msg)
-	m.MsgHdr = dns.MsgHdr{
-		Id:               dns.Id(),
-		RecursionDesired: true,
-	}
+	m := &dns.Msg{}
+	m.MsgHdr = dns.MsgHdr{Id: dns.Id(), RecursionDesired: true}
 	m.Question = []dns.Question{
 		question("cachesize.bind."),
 		question("insertions.bind."),
@@ -143,49 +148,58 @@ func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
 	// TODO(56quarters) emit RTT as a metric
 	res, _, err := d.client.Exchange(m, d.address)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", ErrUpstream, err)
 	}
 
+	// Make sure the questions we sent were included in the response
+	if len(res.Question) != len(m.Question) {
+		return nil, fmt.Errorf(
+			"%w from %s (%d expected, %d received)",
+			ErrNumQuestions, d.address, len(m.Question), len(res.Question),
+		)
+	}
+
+	// Make sure the number of answers matches the number of questions
 	if len(res.Answer) != len(res.Question) {
 		return nil, fmt.Errorf(
-			"unexpected number of answers from %s (%d expected, got %d)",
-			d.address, len(m.Question), len(res.Answer),
+			"%w from %s (%d expected, got %d)",
+			ErrNumAnswers, d.address, len(m.Question), len(res.Answer),
 		)
 	}
 
 	cacheSize, err := parseIntRecord(res.Answer[0])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cache size: %s", ErrParseAnswer, err)
 	}
 
 	cacheInsertions, err := parseIntRecord(res.Answer[1])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cache insertions: %s", ErrParseAnswer, err)
 	}
 
 	cacheEvictions, err := parseIntRecord(res.Answer[2])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cache evictions: %s", ErrParseAnswer, err)
 	}
 
 	cacheMisses, err := parseIntRecord(res.Answer[3])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cache misses: %s", ErrParseAnswer, err)
 	}
 
 	cacheHits, err := parseIntRecord(res.Answer[4])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w cache hits: %s", ErrParseAnswer, err)
 	}
 
 	authoritative, err := parseIntRecord(res.Answer[5])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w authoritative: %s", ErrParseAnswer, err)
 	}
 
 	servers, err := parseServersRecord(res.Answer[6])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w servers: %s", ErrParseAnswer, err)
 	}
 
 	return &DnsmasqResult{
@@ -213,7 +227,7 @@ func (d *DnsmasqReader) Describe(ch chan<- *prometheus.Desc) {
 func (d *DnsmasqReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := d.ReadMetrics()
 	if err != nil {
-		level.Warn(d.logger).Log("msg", "failed to read metrics during collection", "err", err)
+		level.Error(d.logger).Log("msg", "failed to read dnsmasq metrics during collection", "addr", d.address, "err", err)
 		return
 	}
 
@@ -246,20 +260,24 @@ func parseServersRecord(answer dns.RR) ([]ServerStats, error) {
 
 	for i, val := range txt.Txt {
 		statParts := strings.Split(val, " ")
-		sent, err := strconv.ParseUint(statParts[1], 10, 64)
+		if len(statParts) != 3 {
+			return nil, fmt.Errorf("expected 3 server fields, got %d from %s", len(statParts), val)
+		}
+
+		queriesSent, err := strconv.ParseUint(statParts[1], 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		errors, err := strconv.ParseUint(statParts[2], 10, 64)
+		queryErrors, err := strconv.ParseUint(statParts[2], 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
 		out[i] = ServerStats{
 			Address:     statParts[0],
-			QueriesSent: sent,
-			QueryErrors: errors,
+			QueriesSent: queriesSent,
+			QueryErrors: queryErrors,
 		}
 	}
 
