@@ -21,5 +21,7 @@ jobs:
         run: go version && golangci-lint --version
       - name: Build
         run: make build
+      - name: Lint
+        run: make lint
       - name: Test
         run: make test
