@@ -1,6 +1,6 @@
 # Roger
 
-[![build status](https://circleci.com/gh/56quarters/roger.svg?style=shield)](https://circleci.com/gh/56quarters/roger)
+![build status](https://github.com/56quarters/roger/actions/workflows/go.yml/badge.svg)
 
 Prometheus exporter for dnsmasq (DNS and DHCP daemon) and networking metrics.
 
@@ -22,7 +22,7 @@ The `roger` binary will then be in the root of the checkout.
 
 ## Install
 
-At the moment, Roger is GNU/Linux specific. As such, these instructions assume a
+At the moment, `roger` is GNU/Linux specific. As such, these instructions assume a
 GNU/Linux system.
 
 To install Roger after building as described above:

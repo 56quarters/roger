@@ -29,8 +29,11 @@ image-dist: image
 lint:
 	golangci-lint run
 
+setup:
+	GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.33.0
+
 test:
-	go test
+	go test -tags netgo -timeout 5m -race -count 1 ./...
 
 version:
 	git describe --tags --abbrev=0 > VERSION

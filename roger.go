@@ -14,13 +14,13 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"runtime"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/56quarters/roger/pkg/roger"
@@ -43,14 +43,6 @@ const indexTpt = `
 </body>
 </html>
 `
-
-func init() {
-	// Set globals in the Prometheus version module based on our values
-	// set by the build process to expose build information as a metric
-	version.Version = Version
-	version.Branch = Branch
-	version.Revision = Revision
-}
 
 func setupLogger(l level.Option) log.Logger {
 	logger := log.NewSyncLogger(log.NewLogfmtLogger(os.Stderr))
@@ -76,7 +68,17 @@ func main() {
 
 	registry := prometheus.DefaultRegisterer
 
-	versionInfo := version.NewCollector("roger")
+	versionInfo := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "roger",
+		Name:      "build_info",
+		Help:      "Roger version information",
+		ConstLabels: prometheus.Labels{
+			"version":   Version,
+			"revision":  Revision,
+			"branch":    Branch,
+			"goversion": runtime.Version(),
+		},
+	}, func() float64 { return 1 })
 	registry.MustRegister(versionInfo)
 
 	dnsmasqReader := roger.NewDnsmasqReader(new(dns.Client), *dnsServer, logger)

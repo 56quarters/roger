@@ -56,7 +56,7 @@ func (p *ProcNetDevReader) Describe(_ chan<- *prometheus.Desc) {
 func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := p.ReadMetrics()
 	if err != nil {
-		level.Warn(p.logger).Log("msg", "failed to read metrics during collection", "err", err)
+		level.Error(p.logger).Log("msg", "failed to read net/dev metrics during collection", "path", p.path, "err", err)
 		return
 	}
 
@@ -81,9 +81,9 @@ func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 func (p *ProcNetDevReader) Exists() bool {
 	if _, err := os.Stat(p.path); os.IsNotExist(err) {
 		return false
-	} else {
-		return true
 	}
+
+	return true
 }
 
 func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
@@ -139,7 +139,7 @@ func (p *ProcNetDevReader) appendNetDevValues(metrics map[string]uint64, headers
 		val, err := strconv.ParseUint(values[i], 10, 64)
 
 		if err != nil {
-			level.Warn(p.logger).Log("msg", "failed to parse value", "name", name, "err", err)
+			level.Warn(p.logger).Log("msg", "failed to parse value", "name", name, "value", values[i], "err", err)
 			continue
 		}
 
