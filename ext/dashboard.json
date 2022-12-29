@@ -21,7 +21,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.1.2"
+      "version": "9.2.3"
     },
     {
       "type": "datasource",
@@ -634,7 +634,7 @@
         "showThresholdMarkers": true,
         "text": {}
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.2.3",
       "targets": [
         {
           "datasource": {
@@ -702,16 +702,20 @@
         "showThresholdMarkers": true,
         "text": {}
       },
-      "pluginVersion": "9.1.2",
+      "pluginVersion": "9.2.3",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "increase(roger_net_tx_bytes{interface=\"wan0\"}[30d])",
+          "instant": false,
           "interval": "",
           "legendFormat": "tx",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -779,6 +783,6 @@
   "timezone": "",
   "title": "Roger Overview",
   "uid": "nZ0hCWmRz",
-  "version": 67,
+  "version": 68,
   "weekStart": ""
 }
