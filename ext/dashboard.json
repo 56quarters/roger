@@ -21,7 +21,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.2.3"
+      "version": "11.0.0"
     },
     {
       "type": "datasource",
@@ -76,6 +76,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -89,6 +90,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -138,6 +140,7 @@
           "showLegend": true
         },
         "tooltip": {
+          "maxHeight": 600,
           "mode": "multi",
           "sort": "none"
         }
@@ -207,6 +210,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -220,6 +224,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -285,6 +290,7 @@
           "showLegend": false
         },
         "tooltip": {
+          "maxHeight": 600,
           "mode": "multi",
           "sort": "none"
         }
@@ -318,6 +324,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -331,6 +338,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -411,6 +419,7 @@
           "showLegend": true
         },
         "tooltip": {
+          "maxHeight": 600,
           "mode": "multi",
           "sort": "none"
         }
@@ -458,6 +467,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -471,6 +481,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -551,6 +562,7 @@
           "showLegend": true
         },
         "tooltip": {
+          "maxHeight": 600,
           "mode": "multi",
           "sort": "none"
         }
@@ -594,9 +606,12 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-purples"
+            "fixedColor": "dark-purple",
+            "mode": "fixed"
           },
           "mappings": [],
+          "max": 1099511627776,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -622,6 +637,8 @@
       },
       "id": 15,
       "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -632,9 +649,10 @@
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
+        "sizing": "auto",
         "text": {}
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "11.0.0",
       "targets": [
         {
           "datasource": {
@@ -643,15 +661,15 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "increase(roger_net_rx_bytes{interface=\"wan0\"}[30d])",
-          "instant": false,
+          "expr": "increase(roger_net_rx_bytes{interface=\"wan0\"}[$__range])",
+          "instant": true,
           "interval": "",
           "legendFormat": "rx",
-          "range": true,
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "Data RX (30d)",
+      "title": "Data RX",
       "type": "gauge"
     },
     {
@@ -662,9 +680,12 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-greens"
+            "fixedColor": "dark-green",
+            "mode": "fixed"
           },
           "mappings": [],
+          "max": 1099511627776,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -690,6 +711,8 @@
       },
       "id": 19,
       "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -700,9 +723,10 @@
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
+        "sizing": "auto",
         "text": {}
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "11.0.0",
       "targets": [
         {
           "datasource": {
@@ -711,21 +735,21 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "increase(roger_net_tx_bytes{interface=\"wan0\"}[30d])",
-          "instant": false,
+          "expr": "increase(roger_net_tx_bytes{interface=\"wan0\"}[$__range])",
+          "instant": true,
           "interval": "",
           "legendFormat": "tx",
-          "range": true,
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "Data TX (30d)",
+      "title": "Data TX",
       "type": "gauge"
     }
   ],
   "refresh": "1m",
-  "schemaVersion": 37,
-  "style": "dark",
+  "revision": 1,
+  "schemaVersion": 39,
   "tags": [
     "roger",
     "dns",
@@ -763,9 +787,10 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-7d",
     "to": "now"
   },
+  "timeRangeUpdatedDuringEditOrView": false,
   "timepicker": {
     "refresh_intervals": [
       "5s",
@@ -783,6 +808,6 @@
   "timezone": "",
   "title": "Roger Overview",
   "uid": "nZ0hCWmRz",
-  "version": 68,
+  "version": 71,
   "weekStart": ""
 }
