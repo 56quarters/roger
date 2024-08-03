@@ -54,44 +54,45 @@ func newDescriptions() *descriptions {
 			[]string{"server"},
 			nil,
 		),
+
 		dnsCacheInsertions: prometheus.NewDesc(
-			"roger_dns_cache_insertions",
+			"roger_dns_cache_insertions_total",
 			"Number of inserts in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheEvictions: prometheus.NewDesc(
-			"roger_dns_cache_evictions",
+			"roger_dns_cache_evictions_total",
 			"Number of evictions in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheMisses: prometheus.NewDesc(
-			"roger_dns_cache_misses",
+			"roger_dns_cache_misses_total",
 			"Number of misses in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsCacheHits: prometheus.NewDesc(
-			"roger_dns_cache_hits",
+			"roger_dns_cache_hits_total",
 			"Number of hits in the DNS cache",
 			[]string{"server"},
 			nil,
 		),
 		dnsAuthoritative: prometheus.NewDesc(
-			"roger_dns_authoritative",
+			"roger_dns_authoritative_total",
 			"Number of authoritative DNS queries answered",
 			[]string{"server"},
 			nil,
 		),
 		dnsUpstreamQueries: prometheus.NewDesc(
-			"roger_dns_upstream_queries",
+			"roger_dns_upstream_queries_total",
 			"Number of queries sent to upstream servers",
 			[]string{"server", "upstream"},
 			nil,
 		),
 		dnsUpstreamErrors: prometheus.NewDesc(
-			"roger_dns_upstream_errors",
+			"roger_dns_upstream_errors_total",
 			"Number of errors from upstream servers",
 			[]string{"server", "upstream"},
 			nil,
@@ -151,55 +152,54 @@ func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
 		return nil, fmt.Errorf("%w: %s", ErrUpstream, err)
 	}
 
-	// Make sure the questions we sent were included in the response
-	if len(res.Question) != len(m.Question) {
-		return nil, fmt.Errorf(
-			"%w from %s (%d expected, %d received)",
-			ErrNumQuestions, d.address, len(m.Question), len(res.Question),
-		)
-	}
+	var (
+		cacheSize       uint64
+		cacheInsertions uint64
+		cacheEvictions  uint64
+		cacheMisses     uint64
+		cacheHits       uint64
+		authoritative   uint64
+		servers         []ServerStats
+	)
 
-	// Make sure the number of answers matches the number of questions
-	if len(res.Answer) != len(res.Question) {
-		return nil, fmt.Errorf(
-			"%w from %s (%d expected, got %d)",
-			ErrNumAnswers, d.address, len(m.Question), len(res.Answer),
-		)
-	}
-
-	cacheSize, err := parseIntRecord(res.Answer[0])
-	if err != nil {
-		return nil, fmt.Errorf("%w cache size: %s", ErrParseAnswer, err)
-	}
-
-	cacheInsertions, err := parseIntRecord(res.Answer[1])
-	if err != nil {
-		return nil, fmt.Errorf("%w cache insertions: %s", ErrParseAnswer, err)
-	}
-
-	cacheEvictions, err := parseIntRecord(res.Answer[2])
-	if err != nil {
-		return nil, fmt.Errorf("%w cache evictions: %s", ErrParseAnswer, err)
-	}
-
-	cacheMisses, err := parseIntRecord(res.Answer[3])
-	if err != nil {
-		return nil, fmt.Errorf("%w cache misses: %s", ErrParseAnswer, err)
-	}
-
-	cacheHits, err := parseIntRecord(res.Answer[4])
-	if err != nil {
-		return nil, fmt.Errorf("%w cache hits: %s", ErrParseAnswer, err)
-	}
-
-	authoritative, err := parseIntRecord(res.Answer[5])
-	if err != nil {
-		return nil, fmt.Errorf("%w authoritative: %s", ErrParseAnswer, err)
-	}
-
-	servers, err := parseServersRecord(res.Answer[6])
-	if err != nil {
-		return nil, fmt.Errorf("%w servers: %s", ErrParseAnswer, err)
+	for _, ans := range res.Answer {
+		switch ans.Header().Name {
+		case "cachesize.bind.":
+			cacheSize, err = parseIntRecord(ans)
+			if err != nil {
+				return nil, fmt.Errorf("%w cache size: %s", ErrParseAnswer, err)
+			}
+		case "insertions.bind.":
+			cacheInsertions, err = parseIntRecord(ans)
+			if err != nil {
+				return nil, fmt.Errorf("%w cache insertions: %s", ErrParseAnswer, err)
+			}
+		case "evictions.bind.":
+			cacheEvictions, err = parseIntRecord(ans)
+			if err != nil {
+				return nil, fmt.Errorf("%w cache evictions: %s", ErrParseAnswer, err)
+			}
+		case "misses.bind.":
+			cacheMisses, err = parseIntRecord(ans)
+			if err != nil {
+				return nil, fmt.Errorf("%w cache misses: %s", ErrParseAnswer, err)
+			}
+		case "hits.bind.":
+			cacheHits, err = parseIntRecord(ans)
+			if err != nil {
+				return nil, fmt.Errorf("%w cache hits: %s", ErrParseAnswer, err)
+			}
+		case "auth.bind.":
+			authoritative, err = parseIntRecord(ans)
+			if err != nil {
+				return nil, fmt.Errorf("%w authoritative: %s", ErrParseAnswer, err)
+			}
+		case "servers.bind.":
+			servers, err = parseServersRecord(ans)
+			if err != nil {
+				return nil, fmt.Errorf("%w servers: %s", ErrParseAnswer, err)
+			}
+		}
 	}
 
 	return &DnsmasqResult{
@@ -231,7 +231,8 @@ func (d *DnsmasqReader) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheSize, prometheus.CounterValue, float64(res.CacheSize), d.address)
+	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheSize, prometheus.GaugeValue, float64(res.CacheSize), d.address)
+
 	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheInsertions, prometheus.CounterValue, float64(res.CacheInsertions), d.address)
 	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheEvictions, prometheus.CounterValue, float64(res.CacheEvictions), d.address)
 	ch <- prometheus.MustNewConstMetric(d.descriptions.dnsCacheMisses, prometheus.CounterValue, float64(res.CacheMisses), d.address)

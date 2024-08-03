@@ -28,8 +28,9 @@ func (c *mockDNSClient) Exchange(q *dns.Msg, _ string) (r *dns.Msg, rtt time.Dur
 	return &msg, 1 * time.Second, nil
 }
 
-func txt(msgs ...string) dns.RR {
+func txt(name string, msgs ...string) dns.RR {
 	out := dns.TXT{}
+	out.Hdr = dns.RR_Header{Name: name}
 	out.Txt = msgs
 	return &out
 }
@@ -45,54 +46,17 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		assert.ErrorIs(t, err, ErrUpstream)
 	})
 
-	t.Run("mismatched number of questions", func(t *testing.T) {
-		// TODO(56quarters) figure out how to test this
-		t.Skip()
-
-		var mock mockDNSClient
-		mock.msg = &dns.Msg{
-			Answer: []dns.RR{
-				txt("1000"),
-				txt("1001"),
-				txt("1002"),
-				txt("1003"),
-				txt("1004"),
-				txt("1005"),
-				txt("1006"),
-			},
-		}
-
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
-		_, err := reader.ReadMetrics()
-
-		assert.ErrorIs(t, err, ErrNumQuestions)
-	})
-
-	t.Run("mismatched number of answers", func(t *testing.T) {
-		var mock mockDNSClient
-		mock.msg = &dns.Msg{
-			Answer: []dns.RR{
-				txt("1000"),
-			},
-		}
-
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
-		_, err := reader.ReadMetrics()
-
-		assert.ErrorIs(t, err, ErrNumAnswers)
-	})
-
 	t.Run("bad cache size", func(t *testing.T) {
 		var mock mockDNSClient
 		mock.msg = &dns.Msg{
 			Answer: []dns.RR{
-				txt("fail"),
-				txt("1001"),
-				txt("1002"),
-				txt("1003"),
-				txt("1004"),
-				txt("1005"),
-				txt("1.1.1.1 1000 500"),
+				txt("cachesize.bind.", "fail"),
+				txt("insertions.bind.", "1001"),
+				txt("evictions.bind.", "1002"),
+				txt("misses.bind.", "1003"),
+				txt("hits.bind.", "1004"),
+				txt("auth.bind.", "1005"),
+				txt("servers.bind.", "1.1.1.1 1000 500"),
 			},
 		}
 
@@ -106,13 +70,13 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		var mock mockDNSClient
 		mock.msg = &dns.Msg{
 			Answer: []dns.RR{
-				txt("1000"),
-				txt("fail"),
-				txt("1002"),
-				txt("1003"),
-				txt("1004"),
-				txt("1005"),
-				txt("1.1.1.1 1000 500"),
+				txt("cachesize.bind.", "1000"),
+				txt("insertions.bind.", "fail"),
+				txt("evictions.bind.", "1002"),
+				txt("misses.bind.", "1003"),
+				txt("hits.bind.", "1004"),
+				txt("auth.bind.", "1005"),
+				txt("servers.bind.", "1.1.1.1 1000 500"),
 			},
 		}
 
@@ -126,13 +90,13 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		var mock mockDNSClient
 		mock.msg = &dns.Msg{
 			Answer: []dns.RR{
-				txt("1000"),
-				txt("1001"),
-				txt("fail"),
-				txt("1003"),
-				txt("1004"),
-				txt("1005"),
-				txt("1.1.1.1 1000 500"),
+				txt("cachesize.bind.", "1000"),
+				txt("insertions.bind.", "1001"),
+				txt("evictions.bind.", "fail"),
+				txt("misses.bind.", "1003"),
+				txt("hits.bind.", "1004"),
+				txt("auth.bind.", "1005"),
+				txt("servers.bind.", "1.1.1.1 1000 500"),
 			},
 		}
 
@@ -146,13 +110,13 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		var mock mockDNSClient
 		mock.msg = &dns.Msg{
 			Answer: []dns.RR{
-				txt("1000"),
-				txt("1001"),
-				txt("1002"),
-				txt("fail"),
-				txt("1004"),
-				txt("1005"),
-				txt("1.1.1.1 1000 500"),
+				txt("cachesize.bind.", "1000"),
+				txt("insertions.bind.", "1001"),
+				txt("evictions.bind.", "1002"),
+				txt("misses.bind.", "fail"),
+				txt("hits.bind.", "1004"),
+				txt("auth.bind.", "1005"),
+				txt("servers.bind.", "1.1.1.1 1000 500"),
 			},
 		}
 
@@ -166,13 +130,13 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		var mock mockDNSClient
 		mock.msg = &dns.Msg{
 			Answer: []dns.RR{
-				txt("1000"),
-				txt("1001"),
-				txt("1002"),
-				txt("1003"),
-				txt("fail"),
-				txt("1005"),
-				txt("1.1.1.1 1000 500"),
+				txt("cachesize.bind.", "1000"),
+				txt("insertions.bind.", "1001"),
+				txt("evictions.bind.", "1002"),
+				txt("misses.bind.", "1003"),
+				txt("hits.bind.", "fail"),
+				txt("auth.bind.", "1005"),
+				txt("servers.bind.", "1.1.1.1 1000 500"),
 			},
 		}
 
@@ -186,13 +150,13 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		var mock mockDNSClient
 		mock.msg = &dns.Msg{
 			Answer: []dns.RR{
-				txt("1000"),
-				txt("1001"),
-				txt("1002"),
-				txt("1003"),
-				txt("1004"),
-				txt("fail"),
-				txt("1.1.1.1 1000 500"),
+				txt("cachesize.bind.", "1000"),
+				txt("insertions.bind.", "1001"),
+				txt("evictions.bind.", "1002"),
+				txt("misses.bind.", "1003"),
+				txt("hits.bind.", "1004"),
+				txt("auth.bind.", "fail"),
+				txt("servers.bind.", "1.1.1.1 1000 500"),
 			},
 		}
 
@@ -206,13 +170,13 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		var mock mockDNSClient
 		mock.msg = &dns.Msg{
 			Answer: []dns.RR{
-				txt("1000"),
-				txt("1001"),
-				txt("1002"),
-				txt("1003"),
-				txt("1004"),
-				txt("1005"),
-				txt("fail"),
+				txt("cachesize.bind.", "1000"),
+				txt("insertions.bind.", "1001"),
+				txt("evictions.bind.", "1002"),
+				txt("misses.bind.", "1003"),
+				txt("hits.bind.", "1004"),
+				txt("auth.bind.", "1005"),
+				txt("servers.bind.", "fail"),
 			},
 		}
 
@@ -226,13 +190,13 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		var mock mockDNSClient
 		mock.msg = &dns.Msg{
 			Answer: []dns.RR{
-				txt("1000"),
-				txt("1001"),
-				txt("1002"),
-				txt("1003"),
-				txt("1004"),
-				txt("1005"),
-				txt("1.1.1.1:53 1000 500", "8.8.8.8:53 1001 501"),
+				txt("cachesize.bind.", "1000"),
+				txt("insertions.bind.", "1001"),
+				txt("evictions.bind.", "1002"),
+				txt("misses.bind.", "1003"),
+				txt("hits.bind.", "1004"),
+				txt("auth.bind.", "1005"),
+				txt("servers.bind.", "1.1.1.1:53 1000 500", "8.8.8.8:53 1001 501"),
 			},
 		}
 

@@ -21,7 +21,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "11.0.0"
+      "version": "11.1.0"
     },
     {
       "type": "datasource",
@@ -153,7 +153,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(roger_dns_cache_hits[$__rate_interval])",
+          "expr": "rate(roger_dns_cache_hits[$__rate_interval]) or rate(roger_dns_cache_hits_total[$__rate_interval])",
           "interval": "",
           "legendFormat": "hits",
           "range": true,
@@ -165,7 +165,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(roger_dns_cache_misses[$__rate_interval])",
+          "expr": "rate(roger_dns_cache_misses[$__rate_interval]) or rate(roger_dns_cache_misses_total[$__rate_interval])",
           "interval": "",
           "legendFormat": "misses",
           "range": true,
@@ -177,7 +177,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(roger_dns_cache_insertions[$__rate_interval])",
+          "expr": "rate(roger_dns_cache_insertions[$__rate_interval]) or rate(roger_dns_cache_insertions_total[$__rate_interval])",
           "interval": "",
           "legendFormat": "inserts",
           "range": true,
@@ -189,7 +189,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(roger_dns_cache_evictions[$__rate_interval])",
+          "expr": "rate(roger_dns_cache_evictions[$__rate_interval]) or rate(roger_dns_cache_evictions_total[$__rate_interval])",
           "interval": "",
           "legendFormat": "evictions",
           "range": true,
@@ -652,7 +652,7 @@
         "sizing": "auto",
         "text": {}
       },
-      "pluginVersion": "11.0.0",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": {
@@ -726,7 +726,7 @@
         "sizing": "auto",
         "text": {}
       },
-      "pluginVersion": "11.0.0",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": {
@@ -787,10 +787,9 @@
     ]
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-1h",
     "to": "now"
   },
-  "timeRangeUpdatedDuringEditOrView": false,
   "timepicker": {
     "refresh_intervals": [
       "5s",
@@ -808,6 +807,6 @@
   "timezone": "",
   "title": "Roger Overview",
   "uid": "nZ0hCWmRz",
-  "version": 71,
+  "version": 72,
   "weekStart": ""
 }
