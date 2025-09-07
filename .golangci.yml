@@ -10,4 +10,4 @@ linters-settings:
   errcheck:
     exclude: ./.errcheck-exclude
   goimports:
-    local-prefixes: "github.com/56quarters/apcmetrics"
+    local-prefixes: "github.com/56quarters/roger"
