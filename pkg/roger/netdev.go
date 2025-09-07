@@ -109,11 +109,7 @@ func (p *ProcNetDevReader) ReadMetrics() ([]NetInterfaceResults, error) {
 	txHeaders := strings.Fields(headerParts[2])
 	var res []NetInterfaceResults
 
-	for {
-		if !scanner.Scan() {
-			break
-		}
-
+	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.Fields(line)
 		iface := strings.TrimRight(parts[0], ":")

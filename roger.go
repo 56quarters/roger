@@ -106,7 +106,7 @@ func main() {
 	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		if err := index.Execute(w, *metricsPath); err != nil {
 			level.Error(logger).Log("msg", "failed to render index", "err", err)
 		}
