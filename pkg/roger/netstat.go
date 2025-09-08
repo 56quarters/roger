@@ -105,11 +105,7 @@ func (p *ProcNetStatReader) ReadMetrics() (*NetStatResults, error) {
 	headers := strings.Fields(scanner.Text())
 	parsed := make(map[string]ValueDesc)
 
-	for {
-		if !scanner.Scan() {
-			break
-		}
-
+	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.Fields(line)
 		p.parseConnTrackValues(parsed, headers, parts)
