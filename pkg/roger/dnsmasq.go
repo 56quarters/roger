@@ -13,21 +13,18 @@ package roger
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
-	ErrUpstream     = errors.New("error calling upstream")
-	ErrNumAnswers   = errors.New("unexpected number of answers")
-	ErrNumQuestions = errors.New("unexpected number of questions")
-	ErrParseAnswer  = errors.New("error parsing answer")
+	ErrUpstream    = errors.New("error calling upstream")
+	ErrParseAnswer = errors.New("error parsing answer")
 )
 
 // dnsClient is an interface for to allow testing of DnsmasqReader
@@ -120,10 +117,10 @@ type DnsmasqReader struct {
 	client       dnsClient
 	address      string
 	descriptions *descriptions
-	logger       log.Logger
+	logger       *slog.Logger
 }
 
-func NewDnsmasqReader(client dnsClient, address string, logger log.Logger) *DnsmasqReader {
+func NewDnsmasqReader(client dnsClient, address string, logger *slog.Logger) *DnsmasqReader {
 	return &DnsmasqReader{
 		client:       client,
 		address:      address,
@@ -227,7 +224,7 @@ func (d *DnsmasqReader) Describe(ch chan<- *prometheus.Desc) {
 func (d *DnsmasqReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := d.ReadMetrics()
 	if err != nil {
-		level.Error(d.logger).Log("msg", "failed to read dnsmasq metrics during collection", "addr", d.address, "err", err)
+		d.logger.Error("failed to read dnsmasq metrics during collection", "addr", d.address, "err", err)
 		return
 	}
 

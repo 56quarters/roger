@@ -12,16 +12,15 @@ package main
 
 import (
 	"html/template"
+	"log/slog"
 	"net/http"
 	"os"
 	"runtime"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/56quarters/roger/pkg/roger"
 )
@@ -44,15 +43,20 @@ const indexTpt = `
 </html>
 `
 
-func setupLogger(l level.Option) log.Logger {
-	logger := log.NewSyncLogger(log.NewLogfmtLogger(os.Stderr))
-	logger = level.NewFilter(logger, l)
-	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-	return logger
+func setupLogger() *slog.Logger {
+	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+
+	return slog.New(handler)
 }
 
 func main() {
-	logger := setupLogger(level.AllowInfo())
+	os.Exit(realMain())
+}
+
+func realMain() int {
+	logger := setupLogger()
 
 	kp := kingpin.New(os.Args[0], "Roger: DNS and network metrics exporter for Prometheus")
 	metricsPath := kp.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
@@ -62,8 +66,8 @@ func main() {
 
 	_, err := kp.Parse(os.Args[1:])
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to parse CLI options", "err", err)
-		os.Exit(1)
+		logger.Error("failed to parse CLI options", "err", err)
+		return 1
 	}
 
 	registry := prometheus.DefaultRegisterer
@@ -101,19 +105,21 @@ func main() {
 
 	index, err := template.New("index").Parse(indexTpt)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to parse index template", "err", err)
-		os.Exit(1)
+		logger.Error("failed to parse index template", "err", err)
+		return 1
 	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		if err := index.Execute(w, *metricsPath); err != nil {
-			level.Error(logger).Log("msg", "failed to render index", "err", err)
+			logger.Error("failed to render index", "err", err)
 		}
 	})
 
 	if err := http.ListenAndServe(*webAddr, nil); err != nil {
-		level.Error(logger).Log("err", err)
-		os.Exit(1)
+		logger.Error("error running HTTP server", "err", err)
+		return 1
 	}
+
+	return 0
 }

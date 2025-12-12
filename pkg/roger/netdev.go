@@ -15,14 +15,13 @@ package roger
 import (
 	"bufio"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -30,7 +29,7 @@ type ProcNetDevReader struct {
 	path         string
 	lock         sync.Mutex
 	descriptions map[string]*prometheus.Desc
-	logger       log.Logger
+	logger       *slog.Logger
 }
 
 type NetInterfaceResults struct {
@@ -38,7 +37,7 @@ type NetInterfaceResults struct {
 	MetricValues  map[string]uint64
 }
 
-func NewProcNetDevReader(base string, logger log.Logger) *ProcNetDevReader {
+func NewProcNetDevReader(base string, logger *slog.Logger) *ProcNetDevReader {
 	return &ProcNetDevReader{
 		path:         filepath.Join(base, "net", "dev"),
 		lock:         sync.Mutex{},
@@ -56,7 +55,7 @@ func (p *ProcNetDevReader) Describe(_ chan<- *prometheus.Desc) {
 func (p *ProcNetDevReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := p.ReadMetrics()
 	if err != nil {
-		level.Error(p.logger).Log("msg", "failed to read net/dev metrics during collection", "path", p.path, "err", err)
+		p.logger.Error("failed to read net/dev metrics during collection", "path", p.path, "err", err)
 		return
 	}
 
@@ -135,7 +134,7 @@ func (p *ProcNetDevReader) appendNetDevValues(metrics map[string]uint64, headers
 		val, err := strconv.ParseUint(values[i], 10, 64)
 
 		if err != nil {
-			level.Warn(p.logger).Log("msg", "failed to parse value", "name", name, "value", values[i], "err", err)
+			p.logger.Warn("failed to parse value", "name", name, "value", values[i], "err", err)
 			continue
 		}
 
