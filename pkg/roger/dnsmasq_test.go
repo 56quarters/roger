@@ -2,13 +2,11 @@ package roger
 
 import (
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/miekg/dns"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type mockDNSClient struct {
@@ -40,10 +38,10 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 		var mock mockDNSClient
 		mock.err = errors.New("dns client error")
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		_, err := reader.ReadMetrics()
 
-		assert.ErrorIs(t, err, ErrUpstream)
+		RequireErrorIs(t, err, ErrUpstream)
 	})
 
 	t.Run("bad cache size", func(t *testing.T) {
@@ -60,10 +58,10 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 			},
 		}
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		_, err := reader.ReadMetrics()
 
-		assert.ErrorIs(t, err, ErrParseAnswer)
+		RequireErrorIs(t, err, ErrParseAnswer)
 	})
 
 	t.Run("bad cache insertions", func(t *testing.T) {
@@ -80,10 +78,10 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 			},
 		}
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		_, err := reader.ReadMetrics()
 
-		assert.ErrorIs(t, err, ErrParseAnswer)
+		RequireErrorIs(t, err, ErrParseAnswer)
 	})
 
 	t.Run("bad cache evictions", func(t *testing.T) {
@@ -100,10 +98,10 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 			},
 		}
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		_, err := reader.ReadMetrics()
 
-		assert.ErrorIs(t, err, ErrParseAnswer)
+		RequireErrorIs(t, err, ErrParseAnswer)
 	})
 
 	t.Run("bad cache misses", func(t *testing.T) {
@@ -120,10 +118,10 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 			},
 		}
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		_, err := reader.ReadMetrics()
 
-		assert.ErrorIs(t, err, ErrParseAnswer)
+		RequireErrorIs(t, err, ErrParseAnswer)
 	})
 
 	t.Run("bad cache hits", func(t *testing.T) {
@@ -140,10 +138,10 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 			},
 		}
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		_, err := reader.ReadMetrics()
 
-		assert.ErrorIs(t, err, ErrParseAnswer)
+		RequireErrorIs(t, err, ErrParseAnswer)
 	})
 
 	t.Run("bad authoritative", func(t *testing.T) {
@@ -160,10 +158,10 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 			},
 		}
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		_, err := reader.ReadMetrics()
 
-		assert.ErrorIs(t, err, ErrParseAnswer)
+		RequireErrorIs(t, err, ErrParseAnswer)
 	})
 
 	t.Run("bad servers", func(t *testing.T) {
@@ -180,10 +178,10 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 			},
 		}
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		_, err := reader.ReadMetrics()
 
-		assert.ErrorIs(t, err, ErrParseAnswer)
+		RequireErrorIs(t, err, ErrParseAnswer)
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -200,23 +198,23 @@ func TestDnsmasqReader_ReadMetrics(t *testing.T) {
 			},
 		}
 
-		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", log.NewNopLogger())
+		reader := NewDnsmasqReader(&mock, "127.0.0.1:53", slog.Default())
 		res, err := reader.ReadMetrics()
 
-		require.NoError(t, err)
-		assert.Equal(t, uint64(1000), res.CacheSize)
-		assert.Equal(t, uint64(1001), res.CacheInsertions)
-		assert.Equal(t, uint64(1002), res.CacheEvictions)
-		assert.Equal(t, uint64(1003), res.CacheMisses)
-		assert.Equal(t, uint64(1004), res.CacheHits)
-		assert.Equal(t, uint64(1005), res.Authoritative)
+		RequireNoError(t, err)
+		RequireEqual(t, uint64(1000), res.CacheSize)
+		RequireEqual(t, uint64(1001), res.CacheInsertions)
+		RequireEqual(t, uint64(1002), res.CacheEvictions)
+		RequireEqual(t, uint64(1003), res.CacheMisses)
+		RequireEqual(t, uint64(1004), res.CacheHits)
+		RequireEqual(t, uint64(1005), res.Authoritative)
 
-		require.Len(t, res.Servers, 2)
-		assert.Equal(t, "1.1.1.1:53", res.Servers[0].Address)
-		assert.Equal(t, uint64(1000), res.Servers[0].QueriesSent)
-		assert.Equal(t, uint64(500), res.Servers[0].QueryErrors)
-		assert.Equal(t, "8.8.8.8:53", res.Servers[1].Address)
-		assert.Equal(t, uint64(1001), res.Servers[1].QueriesSent)
-		assert.Equal(t, uint64(501), res.Servers[1].QueryErrors)
+		RequireEqual(t, 2, len(res.Servers))
+		RequireEqual(t, "1.1.1.1:53", res.Servers[0].Address)
+		RequireEqual(t, uint64(1000), res.Servers[0].QueriesSent)
+		RequireEqual(t, uint64(500), res.Servers[0].QueryErrors)
+		RequireEqual(t, "8.8.8.8:53", res.Servers[1].Address)
+		RequireEqual(t, uint64(1001), res.Servers[1].QueriesSent)
+		RequireEqual(t, uint64(501), res.Servers[1].QueryErrors)
 	})
 }

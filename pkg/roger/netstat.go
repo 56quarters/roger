@@ -13,14 +13,13 @@ package roger
 import (
 	"bufio"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -34,7 +33,7 @@ type ProcNetStatReader struct {
 	path         string
 	lock         sync.Mutex
 	descriptions map[string]*prometheus.Desc
-	logger       log.Logger
+	logger       *slog.Logger
 }
 
 type NetStatResults struct {
@@ -47,7 +46,7 @@ type ValueDesc struct {
 	promType prometheus.ValueType
 }
 
-func NewProcNetStatReader(base string, variant string, logger log.Logger) *ProcNetStatReader {
+func NewProcNetStatReader(base string, variant string, logger *slog.Logger) *ProcNetStatReader {
 	return &ProcNetStatReader{
 		subsystem:    variant,
 		path:         filepath.Join(base, "net", "stat", variant),
@@ -66,7 +65,7 @@ func (p *ProcNetStatReader) Describe(_ chan<- *prometheus.Desc) {
 func (p *ProcNetStatReader) Collect(ch chan<- prometheus.Metric) {
 	res, err := p.ReadMetrics()
 	if err != nil {
-		level.Error(p.logger).Log("msg", "failed to read net/stat metrics during collection", "path", p.path, "err", err)
+		p.logger.Error("failed to read net/stat metrics during collection", "path", p.path, "err", err)
 		return
 	}
 
@@ -125,7 +124,7 @@ func (p *ProcNetStatReader) parseConnTrackValues(parsed map[string]ValueDesc, he
 		val, err := strconv.ParseUint(values[i], 16, 64)
 
 		if err != nil {
-			level.Warn(p.logger).Log("msg", "failed to parse value", "name", name, "value", values[i], "err", err)
+			p.logger.Warn("failed to parse value", "name", name, "value", values[i], "err", err)
 			continue
 		}
 
