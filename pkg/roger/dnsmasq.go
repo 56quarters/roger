@@ -131,24 +131,6 @@ func NewDnsmasqReader(client dnsClient, address string, logger *slog.Logger) *Dn
 
 // ReadMetrics makes a DNS request to get all known dnsmasq metrics
 func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
-	m := &dns.Msg{}
-	m.MsgHdr = dns.MsgHdr{Id: dns.Id(), RecursionDesired: true}
-	m.Question = []dns.Question{
-		question("cachesize.bind."),
-		question("insertions.bind."),
-		question("evictions.bind."),
-		question("misses.bind."),
-		question("hits.bind."),
-		question("auth.bind."),
-		question("servers.bind."),
-	}
-
-	// TODO(56quarters) emit RTT as a metric
-	res, _, err := d.client.Exchange(m, d.address)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrUpstream, err)
-	}
-
 	var (
 		cacheSize       uint64
 		cacheInsertions uint64
@@ -159,42 +141,67 @@ func (d *DnsmasqReader) ReadMetrics() (*DnsmasqResult, error) {
 		servers         []ServerStats
 	)
 
-	for _, ans := range res.Answer {
-		switch ans.Header().Name {
-		case "cachesize.bind.":
-			cacheSize, err = parseIntRecord(ans)
-			if err != nil {
-				return nil, fmt.Errorf("%w cache size: %s", ErrParseAnswer, err)
-			}
-		case "insertions.bind.":
-			cacheInsertions, err = parseIntRecord(ans)
-			if err != nil {
-				return nil, fmt.Errorf("%w cache insertions: %s", ErrParseAnswer, err)
-			}
-		case "evictions.bind.":
-			cacheEvictions, err = parseIntRecord(ans)
-			if err != nil {
-				return nil, fmt.Errorf("%w cache evictions: %s", ErrParseAnswer, err)
-			}
-		case "misses.bind.":
-			cacheMisses, err = parseIntRecord(ans)
-			if err != nil {
-				return nil, fmt.Errorf("%w cache misses: %s", ErrParseAnswer, err)
-			}
-		case "hits.bind.":
-			cacheHits, err = parseIntRecord(ans)
-			if err != nil {
-				return nil, fmt.Errorf("%w cache hits: %s", ErrParseAnswer, err)
-			}
-		case "auth.bind.":
-			authoritative, err = parseIntRecord(ans)
-			if err != nil {
-				return nil, fmt.Errorf("%w authoritative: %s", ErrParseAnswer, err)
-			}
-		case "servers.bind.":
-			servers, err = parseServersRecord(ans)
-			if err != nil {
-				return nil, fmt.Errorf("%w servers: %s", ErrParseAnswer, err)
+	metricDomainNames := []string{
+		"cachesize.bind.",
+		"insertions.bind.",
+		"evictions.bind.",
+		"misses.bind.",
+		"hits.bind.",
+		"auth.bind.",
+		"servers.bind.",
+	}
+
+	// Do a separate query for each metric because dnsmasq doesn't support multiple
+	// questions in a single request starting in version 2.90.
+	// See https://github.com/56quarters/roger/issues/21
+	for _, name := range metricDomainNames {
+		m := &dns.Msg{}
+		m.MsgHdr = dns.MsgHdr{Id: dns.Id(), RecursionDesired: true}
+		m.Question = []dns.Question{question(name)}
+
+		// TODO(56quarters) emit RTT as a metric
+		res, _, err := d.client.Exchange(m, d.address)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrUpstream, err)
+		}
+
+		for _, ans := range res.Answer {
+			switch ans.Header().Name {
+			case "cachesize.bind.":
+				cacheSize, err = parseIntRecord(ans)
+				if err != nil {
+					return nil, fmt.Errorf("%w cache size: %s", ErrParseAnswer, err)
+				}
+			case "insertions.bind.":
+				cacheInsertions, err = parseIntRecord(ans)
+				if err != nil {
+					return nil, fmt.Errorf("%w cache insertions: %s", ErrParseAnswer, err)
+				}
+			case "evictions.bind.":
+				cacheEvictions, err = parseIntRecord(ans)
+				if err != nil {
+					return nil, fmt.Errorf("%w cache evictions: %s", ErrParseAnswer, err)
+				}
+			case "misses.bind.":
+				cacheMisses, err = parseIntRecord(ans)
+				if err != nil {
+					return nil, fmt.Errorf("%w cache misses: %s", ErrParseAnswer, err)
+				}
+			case "hits.bind.":
+				cacheHits, err = parseIntRecord(ans)
+				if err != nil {
+					return nil, fmt.Errorf("%w cache hits: %s", ErrParseAnswer, err)
+				}
+			case "auth.bind.":
+				authoritative, err = parseIntRecord(ans)
+				if err != nil {
+					return nil, fmt.Errorf("%w authoritative: %s", ErrParseAnswer, err)
+				}
+			case "servers.bind.":
+				servers, err = parseServersRecord(ans)
+				if err != nil {
+					return nil, fmt.Errorf("%w servers: %s", ErrParseAnswer, err)
+				}
 			}
 		}
 	}
